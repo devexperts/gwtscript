@@ -1,5 +1,5 @@
 #### Hi there
-This is Java-Translate package, tool for TS -> Java translation. It finds marked interfaces, type declarations and translates them into Java classes.
+This is GWTScript, tool for TS -> Java translation. It finds marked interfaces, type declarations and translates them into Java classes.
 
 #### Development:
 > yarn start:dev

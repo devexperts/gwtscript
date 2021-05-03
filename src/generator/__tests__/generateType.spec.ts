@@ -149,8 +149,7 @@ describe("generateType()", () => {
             right([
                 {
                     name: "Test",
-                    path:
-                        "/dist/test/Test.java",
+                    path: "/dist/test/Test.java",
                     content: `package com.devexperts.test;
 
 import jsinterop.annotations.JsPackage;
@@ -177,8 +176,7 @@ public class Test extends BaseProps {
                 },
                 {
                     name: "Test_objField",
-                    path:
-                        "/dist/test/Test_objField.java",
+                    path: "/dist/test/Test_objField.java",
                     content: `package com.devexperts.test;
 
 import com.test.pk.int;
@@ -193,8 +191,7 @@ public class Test_objField {
                 },
                 {
                     name: "Test_refable",
-                    path:
-                        "/dist/test/Test_refable.java",
+                    path: "/dist/test/Test_refable.java",
                     content: `package com.devexperts.test;
 
 import com.js.Event;
