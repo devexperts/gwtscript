@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "lib": [
+            "DOM",
+            "es2019"
+        ],
+        "noEmit": true,
+        "allowSyntheticDefaultImports": true,
+        "allowJs": false,
+        "resolveJsonModule": true,
+        "module": "CommonJS",
+        "target": "ES5",
+    },
+    "include": [
+        "src",
+        "run.ts"
+    ],
+    "exclude": [
+        "**/__tests__/.*\\.(ts)$"
+    ]
+}

@@ -1,0 +1,6 @@
+dir/
+node_modules/
+run.ts
+dist/
+lib/
+RES.json

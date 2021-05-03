@@ -1,0 +1,6 @@
+dist/
+dir/
+node_modules/
+src/
+.prettierrc
+run.ts
