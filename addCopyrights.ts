@@ -1,5 +1,6 @@
 import { open } from "fs/promises";
 import * as glob from "glob";
+import * as chalk from "chalk";
 
 const FILE_PATTERN = "./src/**/*.ts";
 const FILE_IGNORE_PATTERN = "./src/**/__tests__/**/*";
@@ -24,7 +25,21 @@ ${COPYRIGHT_TEXT}
 `);
 
 const run = async (filePattern: string, ignoreFiles: string) => {
+    console.log(chalk.white.bold("Add copyrights script started\n"));
+    console.log(
+        chalk.black.bgMagenta("File Pattern:"),
+        chalk.white.bold(filePattern)
+    );
+    console.log(
+        chalk.black.bgMagenta("Ignore Pattern:"),
+        chalk.white.bold(ignoreFiles)
+    );
     const files = await findFiles(filePattern, ignoreFiles);
+    console.log(
+        chalk.black.bgMagenta("Files found:"),
+        chalk.white.bold(files.length)
+    );
+
     for (const path of files) {
         const file = await open(path, "a+");
 
@@ -32,7 +47,11 @@ const run = async (filePattern: string, ignoreFiles: string) => {
             encoding: "utf-8",
         });
 
+        let modified = 0;
+        let ignored = 0;
+
         if (content.search(COPYRIGHT_TEXT) === -1) {
+            modified++;
             await file.write(contentToBuffer, 0, contentToBuffer.length, 0);
             await file.write(
                 Buffer.from(content),
@@ -40,7 +59,24 @@ const run = async (filePattern: string, ignoreFiles: string) => {
                 content.length,
                 contentToBuffer.length
             );
+            console.log(
+                chalk.white.bold(`"${path}"`) +
+                    chalk.black.bgGreen.bold("copyright added")
+            );
+        } else {
+            ignored++;
+            console.log(
+                chalk.white.bold(`"${path}"`) +
+                    chalk.black.bgYellow.bold("already has copyright")
+            );
         }
+
+        console.log(chalk.white.bold("Total"));
+        console.log(
+            chalk.black.bgGreen(`Modified: ${modified}`),
+            chalk.black.bgYellow(`Ignored: ${ignored}`)
+        );
+
         file.close();
     }
 };
