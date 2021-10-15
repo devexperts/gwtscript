@@ -137,7 +137,7 @@ const run = async (
         file.close();
     }
 
-    console.log(chalk.white.bold("Total"));
+    console.log(chalk.white.bold("\nTotal"));
     console.log(
         chalk.black.bgGreen(`Modified: ${modified}`),
         chalk.black.bgYellow(`Ignored: ${ignored}`)
