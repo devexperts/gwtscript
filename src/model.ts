@@ -5,7 +5,7 @@ export interface TypeField {
 
 export type ParsedType = 
     | PrimitiveType
-    | FunctionType
+    | FunctionType  
     | ObjectType
     | ArrayType
     | UnionType
