@@ -3,7 +3,8 @@ export interface TypeField {
     type: ParsedType;
 }
 
-export type ParsedType = | PrimitiveType
+export type ParsedType = 
+    | PrimitiveType
     | FunctionType
     | ObjectType
     | ArrayType
