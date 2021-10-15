@@ -1,6 +1,6 @@
 import { Either, map, mapLeft } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
-import { ObjectType, TypeToGenerate } from "../model";
+import { RefableType, TypeToGenerate } from "../model";
 import { sequenceEither } from "../utils/sequenceEither";
 import { GeneratorConfig } from "./generator.config";
 import { FieldsGeneratingError } from "./generator.errors";
@@ -10,7 +10,7 @@ export const generateContent = (
     type: TypeToGenerate,
     pack: string,
     config: GeneratorConfig,
-    generateRef: (name: string, type: ObjectType) => { name: string }
+    generateRef: (name: string, type: RefableType) => { name: string }
 ): Either<FieldsGeneratingError, string> => {
     return pipe(
         sequenceEither(

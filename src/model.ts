@@ -10,7 +10,9 @@ export type ParsedType =
     | ArrayType
     | UnionType
     | ReferenceType
-    | UserType;
+    | UserType
+    | NumberLiteral
+    | StringLiteral;
 
 export interface TypeToGenerate {
     name: string;
@@ -21,6 +23,11 @@ export interface TypeToGenerate {
 export interface ParserOutput {
     typesToGenerate: readonly TypeToGenerate[];
 }
+
+export type RefableType =
+    | ObjectType
+    | UnionType<StringLiteral>
+    | UnionType<NumberLiteral>;
 
 export abstract class Type<ID, T> {
     public abstract identifier: ID;
@@ -34,6 +41,14 @@ export type PrimitiveTypes = {
     VOID: true;
     ANY: true;
 };
+
+export class Literal<T extends number | string> extends Type<"literal", T> {
+    identifier: "literal" = "literal";
+}
+
+export class NumberLiteral extends Literal<number> {}
+
+export class StringLiteral extends Literal<string> {}
 
 export class PrimitiveType extends Type<"primitive", keyof PrimitiveTypes> {
     identifier: "primitive" = "primitive";
@@ -64,7 +79,10 @@ export class ArrayType extends Type<"array", ParsedType> {
     identifier: "array" = "array";
 }
 
-export class UnionType extends Type<"union", readonly ParsedType[]> {
+export class UnionType<T extends ParsedType = ParsedType> extends Type<
+    "union",
+    readonly T[]
+> {
     identifier: "union" = "union";
 }
 

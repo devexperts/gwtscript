@@ -6,10 +6,12 @@ import {
     ObjectType,
     ParsedType,
     PrimitiveType,
+    RefableType,
     ReferenceType,
     UnionType,
     UserType,
 } from "../model";
+import { isNumberUnion, isStringUnion } from "../utils/guards/isSpecificUnion";
 import { sequenceEither } from "../utils/sequenceEither";
 import { unEither } from "../utils/unEither";
 import { GeneratorConfig } from "./generator.config";
@@ -20,7 +22,7 @@ export type TypeToStringResult = { result: string; imports: string[] };
 export const typeToString = (
     type: ParsedType,
     config: GeneratorConfig,
-    getReferenceTo: (obj: ObjectType) => { name: string }
+    getReferenceTo: (obj: RefableType) => { name: string }
 ): Either<Error | ReferenceTypeGenericError, TypeToStringResult> => {
     if (type instanceof PrimitiveType) {
         if (type.type === "VOID") {
@@ -79,29 +81,34 @@ export const typeToString = (
     }
 
     if (type instanceof UnionType) {
-        if (type.type.length === 0) {
+        const types = type.type.filter(
+            (item) => !(item.identifier === "primitive" && item.type === "VOID")
+        );
+
+        if (types.length === 0) {
             return left(new Error("Empty union type"));
         }
 
-        if (type.type.length > 2) {
-            return left(new Error("Union has more then 2 options"));
+        if (types.length === 1) {
+            return typeToString(types[0], config, getReferenceTo);
         }
 
-        const voidIndex = type.type.findIndex((item) => {
-            if (item instanceof PrimitiveType && item.type === "VOID") {
-                return true;
-            }
-            return false;
-        });
+        const pureUnion = new UnionType(types);
 
-        if (voidIndex === -1)
-            return left(
-                new Error("Union has 2 options and no one is VOID type")
-            );
+        if (isStringUnion(pureUnion) || isNumberUnion(pureUnion)) {
+            const ref = getReferenceTo(pureUnion);
 
-        const valIndex = 1 - voidIndex;
+            return right({
+                imports: [],
+                result: ref.name,
+            });
+        }
 
-        return typeToString(type.type[valIndex], config, getReferenceTo);
+        return left(
+            new Error(
+                `Cannot stringify union, ${JSON.stringify(type, undefined, 2)}`
+            )
+        );
     }
 
     if (type instanceof ReferenceType) {
@@ -152,5 +159,5 @@ export const typeToString = (
         });
     }
 
-    return left(new Error(`Unkown type: ${JSON.stringify(type)}`));
+    return left(new Error(`Unkown type: ${JSON.stringify(type, null, 2)}`));
 };

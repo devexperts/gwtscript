@@ -1,8 +1,9 @@
 import { Either, left, right } from "fp-ts/lib/Either";
 import { ObjectType, PrimitiveType, UnionType } from "../../model";
-import { generateExtraObj, ExtraObject } from "../generateExtraObj";
+import { generateExtraObj } from "../generateExtraObj";
 
 import { GeneratorConfig } from "../generator.config";
+import { ExtraObject } from "../model";
 
 describe("generateExtraObj()", () => {
     const config: GeneratorConfig = {

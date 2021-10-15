@@ -2,10 +2,12 @@ import * as ts from "typescript";
 import {
     ArrayType,
     FunctionType,
+    NumberLiteral,
     ObjectType,
     ParsedType,
     PrimitiveType,
     ReferenceType,
+    StringLiteral,
     UnionType,
 } from "../model";
 
@@ -15,6 +17,7 @@ import { getParsedType } from "./getParsedType";
 import { ParserConfig } from "./parser.model";
 import { pipe } from "fp-ts/lib/function";
 import { flatten } from "fp-ts/lib/ReadonlyArray";
+import { getEscapedText } from "../utils/getEscapedText";
 
 export const parseTypeNode = (
     node: ts.TypeNode | ts.TypeElement,
@@ -37,6 +40,20 @@ export const parseTypeNode = (
         case ts.SyntaxKind.AnyKeyword:
             return some(new PrimitiveType("ANY"));
     }
+
+    // checking for literals
+    if(ts.isLiteralTypeNode(node)) {
+        if(node.literal.kind === ts.SyntaxKind.StringLiteral) {
+            return some(new StringLiteral(node.literal.text));
+        }
+        if(node.literal.kind === ts.SyntaxKind.NumericLiteral) {
+            return some(new NumberLiteral(Number(node.literal.text)));
+        }
+        if(node.literal.kind === ts.SyntaxKind.NullKeyword) {
+            return some(new PrimitiveType("VOID"))
+        }
+    }
+
 
     // Function type detection
     if (ts.isFunctionTypeNode(node)) {
@@ -160,26 +177,30 @@ export const parseTypeNode = (
             );
         }
 
+        // Unfortunately, in non-shape cases we only have ts.Type.
         return getParsedType(type);
     }
 
+    // Object fields
     if (ts.isTypeLiteralNode(node)) {
         return pipe(
             sequenceArray(
                 node.members.map((type) => {
                     if (ts.isPropertySignature(type)) {
-                        return pipe(
+                        return combineOptions(
                             parseTypeNode(
                                 type.type,
                                 checker,
-                                checker.getTypeFromTypeNode(type.type),
+                                checker.getTypeAtLocation(type.type),
                                 config
                             ),
-                            map((value) => ({
-                                name: type.name.getText(),
-                                type: value,
-                            }))
-                        );
+                            // TODO fix node - parent relationship
+                            getEscapedText(type.name),
+                            (type, name) => ({
+                                name,
+                                type,
+                            })
+                        )
                     }
                     return none;
                 })

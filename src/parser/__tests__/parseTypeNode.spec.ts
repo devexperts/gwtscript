@@ -2,9 +2,11 @@ import { none, some } from "fp-ts/lib/Option";
 import {
     ArrayType,
     FunctionType,
+    NumberLiteral,
     ObjectType,
     PrimitiveType,
     ReferenceType,
+    StringLiteral,
     UnionType,
 } from "../../model";
 import { parseTypeNode } from "../parseTypeNode";
@@ -37,6 +39,8 @@ describe("parseTypeNode()", () => {
             objectArray: td`type A = { a: number }[]`,
             literalError: td`type A = true | 2 | "ASDASD"`,
             empyArrayError: td`type A = []`,
+            strLiteral: td`type A = "AA"`,
+            numLiteral: td`type A = 4`,
         },
     });
 
@@ -111,6 +115,8 @@ describe("parseTypeNode()", () => {
         ],
         [host.getNode("empyArrayError"), none],
         [host.getNode("literalError"), none],
+        [host.getNode("strLiteral"), some(new StringLiteral("AA"))],
+        [host.getNode("numLiteral"), some(new NumberLiteral(4))],
     ])("table tests", (arg, result) => {
         test("correct type detection", () => {
             expect(

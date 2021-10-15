@@ -4,3 +4,4 @@ run.ts
 dist/
 lib/
 RES.json
+.DS_Store

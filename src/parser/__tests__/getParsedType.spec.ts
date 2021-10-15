@@ -1,5 +1,5 @@
 import { none, some } from "fp-ts/lib/Option";
-import { PrimitiveType } from "../../model";
+import { NumberLiteral, PrimitiveType, UnionType } from "../../model";
 import { getParsedType } from "../getParsedType";
 import { td, TestHost } from "./TestHost";
 
@@ -14,7 +14,7 @@ describe("getParsedType()", () => {
             void: td`type A = void`,
             boolOrNumber: td`type A = boolean | number`,
             obj: td`type A = { a: number }`,
-            numErr: td`type A = 2`,
+            numLiteral: td`type A = 2`,
         },
     });
 
@@ -25,9 +25,17 @@ describe("getParsedType()", () => {
         [host.getNode("undef"), some(new PrimitiveType("VOID"))],
         [host.getNode("void"), some(new PrimitiveType("VOID"))],
         [host.getNode("bool"), some(new PrimitiveType("BOOLEAN"))],
-        [host.getNode("boolOrNumber"), none],
+        [
+            host.getNode("boolOrNumber"),
+            some(
+                new UnionType([
+                    new PrimitiveType("NUMBER"),
+                    new PrimitiveType("BOOLEAN"),
+                ])
+            ),
+        ],
         [host.getNode("obj"), none],
-        [host.getNode("numErr"), none],
+        [host.getNode("numLiteral"), some(new NumberLiteral(2))],
     ])("table test", (node, result) => {
         it("works with primitives", () => {
             expect(

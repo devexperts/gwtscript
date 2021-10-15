@@ -1,13 +1,14 @@
 import { Either, flatten, map } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
 import { resolve } from "path";
-import { ObjectType, TypeToGenerate } from "../model";
+import { ObjectType, RefableType, TypeToGenerate } from "../model";
 import { unEither } from "../utils/unEither";
 import { generateContent } from "./generateContent";
-import { generateExtraObj, ExtraObject } from "./generateExtraObj";
+import { generateExtraObj } from "./generateExtraObj";
+import { generateUnionType } from "./generateUnionType";
 import { GeneratorConfig } from "./generator.config";
 import { FieldsGeneratingError } from "./generator.errors";
-import { GeneratorResult } from "./model";
+import { ExtraObject, GeneratorResult } from "./model";
 
 export const generateType = (
     type: TypeToGenerate,
@@ -36,21 +37,38 @@ export const generateType = (
                 }.${type.name.toLowerCase()}`;
 
                 const extraTypes = new Map<string, ExtraObject>();
-                const handleRef = (name: string, obj: ObjectType) => {
+                const handleRef = (name: string, toRef: RefableType) => {
                     const extraName =
-                        obj.nameNotation ?? `${type.name}_${name}`;
+                        toRef.identifier === "object"
+                            ? toRef.nameNotation ?? `${type.name}_${name}`
+                            : `${type.name}_${name}`;
+
                     if (!extraTypes.has(extraName)) {
-                        extraTypes.set(
-                            extraName,
-                            unEithered(
+                        if (toRef.identifier === "object") {
+                            extraTypes.set(
+                                extraName,
+                                unEithered(
+                                    extraName,
+                                    packageName,
+                                    resolve(folderPath, `${extraName}.java`),
+                                    toRef,
+                                    config,
+                                    handleRef
+                                )
+                            );
+                        } else {
+                            const content = generateUnionType(
                                 extraName,
                                 packageName,
-                                resolve(folderPath, `${extraName}.java`),
-                                obj,
-                                config,
-                                handleRef
-                            )
-                        );
+                                toRef
+                            );
+                            extraTypes.set(extraName, {
+                                content,
+                                name: extraName,
+                                path: resolve(folderPath, `${extraName}.java`),
+                                type: toRef,
+                            });
+                        }
                     }
                     const val = extraTypes.get(extraName);
                     return {

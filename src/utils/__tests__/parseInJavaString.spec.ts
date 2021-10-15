@@ -27,6 +27,23 @@ describe("parseInJavaString()", () => {
             );
         }
     });
+    it("works in cases with generic arguments", () => {
+        const result = parseInJavaString(
+            "// @InJava A<B, C> from nothing",
+            conf
+        );
+        const right = isRight(result);
+        expect(right).toBe(true);
+
+        if (isRight(result)) {
+            expect(result.right).toEqual(
+                new UserType({
+                    imports: ["nothing"],
+                    text: "A<B, C>",
+                })
+            );
+        }
+    });
     it("works with several imports", () => {
         const result = parseInJavaString(
             "// @InJava String from nothing, nothing2",

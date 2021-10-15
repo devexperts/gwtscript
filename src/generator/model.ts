@@ -1,4 +1,4 @@
-import { ParsedType } from "../model";
+import { ParsedType, RefableType } from "../model";
 import { GeneratorConfig } from "./generator.config";
 
 export interface TransformParsedTypeToString {
@@ -13,3 +13,10 @@ export interface GeneratorResult {
     path: string;
     content: string;
 }
+
+export type ExtraObject = {
+    content: string;
+    name: string;
+    path: string;
+    type: RefableType;
+};

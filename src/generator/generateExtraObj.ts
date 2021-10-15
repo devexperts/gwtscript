@@ -4,13 +4,7 @@ import { ObjectType } from "../model";
 import { generateExtraType } from "./generateExtraType";
 import { GeneratorConfig } from "./generator.config";
 import { FieldsGeneratingError } from "./generator.errors";
-
-export type ExtraObject = {
-    content: string;
-    name: string;
-    path: string;
-    type: ObjectType;
-};
+import { ExtraObject } from "./model";
 
 export const generateExtraObj = (
     name: string,

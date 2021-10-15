@@ -19,13 +19,14 @@ export const parseInJavaString = (
 ): Either<ParsingError, UserType> => {
     const start = str.match(config.inJavaRegExpTest);
     const short = str.slice(start.index + start[0].length).trim();
-
     if (short.length === 0) return ParsingError._create(str);
 
     const [text, imports] = short.split(/\s+from\s+/);
 
     if (!text || text.search(/\s+/) !== -1) {
-        return ParsingError._create(str);
+        //check if \s symbols placed in A<B, C> constructions
+        if (text.replace(/,\s/, "").search(/\s+/) !== -1)
+            return ParsingError._create(str);
     }
 
     if (!imports) {

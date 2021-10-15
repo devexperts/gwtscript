@@ -110,7 +110,21 @@ describe("typeToString()", () => {
                     name: "",
                 })
             )
-        ).toEqual(left(new Error("Union has more then 2 options")));
+        ).toEqual(
+            left(
+                new Error(
+                    `Cannot stringify union, ${JSON.stringify(
+                        new UnionType([
+                            new PrimitiveType("VOID"),
+                            new PrimitiveType("NUMBER"),
+                            new PrimitiveType("STRING"),
+                        ]),
+                        undefined,
+                        2
+                    )}`
+                )
+            )
+        );
 
         expect(
             typeToString(
@@ -125,7 +139,18 @@ describe("typeToString()", () => {
                 })
             )
         ).toEqual(
-            left(new Error("Union has 2 options and no one is VOID type"))
+            left(
+                new Error(
+                    `Cannot stringify union, ${JSON.stringify(
+                        new UnionType([
+                            new PrimitiveType("NUMBER"),
+                            new PrimitiveType("STRING"),
+                        ]),
+                        undefined,
+                        2
+                    )}`
+                )
+            )
         );
     });
 
