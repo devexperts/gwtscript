@@ -19,7 +19,8 @@ const findFiles = (pattern: string, ignore: string) =>
 
 const contentToBuffer = Buffer.from(`/*
 ${COPYRIGHT_TEXT}
-*/`);
+*/
+`);
 
 const run = async (filePattern: string, ignoreFiles: string) => {
     const files = await findFiles(filePattern, ignoreFiles);
@@ -32,7 +33,12 @@ const run = async (filePattern: string, ignoreFiles: string) => {
 
         if (content.search(COPYRIGHT_TEXT) === -1) {
             await file.write(contentToBuffer, 0, contentToBuffer.length, 0);
-            await file.write(content);
+            await file.write(
+                Buffer.from(content),
+                0,
+                content.length,
+                contentToBuffer.length
+            );
         }
         file.close();
     }
