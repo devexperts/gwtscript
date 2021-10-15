@@ -20,6 +20,7 @@ const findFiles = (pattern: string, ignore: string) =>
 const contentToBuffer = Buffer.from(`/*
 ${COPYRIGHT_TEXT}
 */
+
 `);
 
 const run = async (filePattern: string, ignoreFiles: string) => {
