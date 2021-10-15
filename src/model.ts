@@ -1,5 +1,5 @@
 export interface TypeField {
-    name: string;
+    name: string;  
     type: ParsedType;
 }
 
