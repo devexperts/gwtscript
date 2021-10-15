@@ -38,6 +38,7 @@ const isFull = <ObjType extends Record<string, string>>(
     for (const key in check) {
         if (key in target) {
             checked++;
+            continue;
         }
         return false;
     }
