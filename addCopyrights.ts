@@ -123,14 +123,14 @@ const run = async (
                 contentToBuffer.length
             );
             console.log(
-                chalk.black.bgGreen.bold(rows.added) +
-                    chalk.white.bold(`"${path}"`)
+                chalk.black.bgGreen.bold(rows.added),
+                chalk.white.bold(path)
             );
         } else {
             ignored++;
             console.log(
-                chalk.black.bgYellow.bold(rows.has) +
-                    chalk.white.bold(`"${path}"`)
+                chalk.black.bgYellow.bold(rows.has),
+                chalk.white.bold(path)
             );
         }
 
