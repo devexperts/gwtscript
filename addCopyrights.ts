@@ -72,9 +72,12 @@ const normalizeTexts = <Texts extends Record<string, string>>(
     throw new Error();
 };
 
-const results = normalizeTexts({
+const rows = normalizeTexts({
     added: "copyright added",
     has: "already has copyright",
+    pattern: "File Pattern:",
+    ignore: "Ignore Pattern:",
+    found: "Files found:",
 });
 
 // ------ MAIN -------
@@ -86,16 +89,16 @@ const run = async (
 ) => {
     console.log(chalk.white.bold("Add copyrights script started\n"));
     console.log(
-        chalk.black.bgMagenta("File Pattern:"),
+        chalk.black.bgMagenta(rows.pattern),
         chalk.white.bold(filePattern)
     );
     console.log(
-        chalk.black.bgMagenta("Ignore Pattern:"),
+        chalk.black.bgMagenta(rows.ignore),
         chalk.white.bold(ignoreFiles)
     );
     const files = await findFiles(filePattern, ignoreFiles);
     console.log(
-        chalk.black.bgMagenta("Files found:"),
+        chalk.black.bgMagenta(rows.found),
         chalk.white.bold(files.length)
     );
     console.log("");
@@ -120,14 +123,14 @@ const run = async (
                 contentToBuffer.length
             );
             console.log(
-                chalk.white.bold(`"${path}"`) +
-                    chalk.black.bgGreen.bold(results.added)
+                chalk.black.bgGreen.bold(rows.added) +
+                    chalk.white.bold(`"${path}"`)
             );
         } else {
             ignored++;
             console.log(
-                chalk.white.bold(`"${path}"`) +
-                    chalk.black.bgYellow.bold(results.has)
+                chalk.black.bgYellow.bold(rows.has) +
+                    chalk.white.bold(`"${path}"`)
             );
         }
 
