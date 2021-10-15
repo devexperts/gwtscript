@@ -40,15 +40,15 @@ const run = async (filePattern: string, ignoreFiles: string) => {
         chalk.white.bold(files.length)
     );
 
+    let modified = 0;
+    let ignored = 0;
+
     for (const path of files) {
         const file = await open(path, "a+");
 
         const content = await file.readFile({
             encoding: "utf-8",
         });
-
-        let modified = 0;
-        let ignored = 0;
 
         if (content.search(COPYRIGHT_TEXT) === -1) {
             modified++;
@@ -71,14 +71,14 @@ const run = async (filePattern: string, ignoreFiles: string) => {
             );
         }
 
-        console.log(chalk.white.bold("Total"));
-        console.log(
-            chalk.black.bgGreen(`Modified: ${modified}`),
-            chalk.black.bgYellow(`Ignored: ${ignored}`)
-        );
-
         file.close();
     }
+
+    console.log(chalk.white.bold("Total"));
+    console.log(
+        chalk.black.bgGreen(`Modified: ${modified}`),
+        chalk.black.bgYellow(`Ignored: ${ignored}`)
+    );
 };
 
 run(FILE_PATTERN, FILE_IGNORE_PATTERN);
