@@ -41,7 +41,7 @@ const isFull = <ObjType extends Record<string, string>>(
         }
         return false;
     }
-    if (checked > Object.keys(target).length) return false;
+    if (checked < Object.keys(target).length) return false;
 
     return true;
 };
