@@ -73,8 +73,8 @@ const normalizeTexts = <Texts extends Record<string, string>>(
 };
 
 const rows = normalizeTexts({
-    added: "copyright added",
-    has: "already has copyright",
+    added: "copyright added:",
+    has: "already has copyright:",
     pattern: "File Pattern:",
     ignore: "Ignore Pattern:",
     found: "Files found:",
