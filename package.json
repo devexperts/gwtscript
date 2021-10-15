@@ -2,23 +2,26 @@
   "name": "@dx-private/java-translate",
   "version": "1.3.5",
   "main": "lib/index.js",
-  "license": "MIT",
+  "license": "MPL",
   "dependencies": {
     "fp-ts": "^2.9.5",
-    "fs-extra": "^9.1.0"
+    "fs-extra": "^9.1.0",
+    "typescript": "^4.4.4"
   },
   "peerDependencies": {
     "typescript": ">=4.0.1"
   },
   "devDependencies": {
+    "husky": "^3.0.5",
     "@types/fs-extra": "^9.0.8",
+    "@types/glob": "^7.1.4",
     "@types/jest": "^26.0.21",
     "@types/node": "^14.14.31",
     "@typescript-eslint/eslint-plugin": "^4.15.2",
     "@typescript-eslint/parser": "^4.15.2",
     "eslint": "^7.20.0",
     "eslint-config-prettier": "^8.1.0",
-    "husky": "^6.0.0",
+    "glob": "^7.2.0",
     "jest": "^26.6.3",
     "lint-staged": "^10.5.4",
     "nodemon": "^2.0.7",
@@ -37,7 +40,8 @@
     "typecheck": "tsc",
     "prepublishOnly": "yarn jest && yarn build",
     "jest": "jest --no-cache",
-    "jest:watch": "jest --watch"
+    "jest:watch": "jest --watch",
+    "add-copyrights": "ts-node addCopyrights.ts"
   },
   "nodemonConfig": {
     "execMap": {
@@ -64,7 +68,6 @@
     "registry": "https://nexus.in.devexperts.com/repository/npm-dx-private/"
   },
   "jest": {
-    "timers": "fake",
     "moduleFileExtensions": [
       "js",
       "ts"
