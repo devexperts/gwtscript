@@ -31,7 +31,12 @@ const run = async (filePattern: string, ignoreFiles: string) => {
         });
 
         if (content.search(COPYRIGHT_TEXT) === -1) {
-            await file.write(contentToBuffer, 0, contentToBuffer.length, 0);
+            await file.write(
+                contentToBuffer,
+                contentToBuffer.length,
+                contentToBuffer.length,
+                0
+            );
         }
         file.close();
     }
