@@ -2,13 +2,18 @@ import { open } from "fs/promises";
 import * as glob from "glob";
 import * as chalk from "chalk";
 
+// --------- CONFIG --------
+
 const FILE_PATTERN = "./src/**/*.ts";
 const FILE_IGNORE_PATTERN = "./src/**/__tests__/**/*";
 
+const CHECK_COPYRIGHT_TEXT = "Copyright";
 const COPYRIGHT_TEXT = `Copyright (C) 2002 - 2021 Devexperts LLC
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.`;
+
+// --------- HELPERS -------
 
 const findFiles = (pattern: string, ignore: string) =>
     new Promise<string[]>((resolve, reject) => {
@@ -24,7 +29,60 @@ ${COPYRIGHT_TEXT}
 
 `);
 
-const run = async (filePattern: string, ignoreFiles: string) => {
+const isFull = <ObjType extends Record<string, string>>(
+    check: Partial<ObjType>,
+    target: ObjType
+): check is ObjType => {
+    let checked = 0;
+
+    for (const key in check) {
+        if (key in target) {
+            checked++;
+        }
+        return false;
+    }
+    if (checked < Object.keys(checked).length) return false;
+
+    return true;
+};
+
+const normalizeTexts = <Texts extends Record<string, string>>(
+    texts: Texts
+): Texts => {
+    let maxLength = 0;
+    for (const key in texts) {
+        if (texts[key].length > maxLength) {
+            maxLength = texts[key].length;
+        }
+    }
+
+    const normalized: Partial<Texts> = {};
+
+    for (const key in texts) {
+        const current = texts[key];
+        normalized[key] = (new Array(maxLength - current.length)
+            .fill(" ")
+            .join("") + current) as Texts[Extract<keyof Texts, string>];
+    }
+
+    if (isFull(normalized, texts)) {
+        return normalized;
+    }
+    throw new Error();
+};
+
+const results = normalizeTexts({
+    added: "copyright added",
+    has: "already has copyright",
+});
+
+// ------ MAIN -------
+
+const run = async (
+    filePattern: string,
+    ignoreFiles: string,
+    checkText: string
+) => {
     console.log(chalk.white.bold("Add copyrights script started\n"));
     console.log(
         chalk.black.bgMagenta("File Pattern:"),
@@ -39,6 +97,7 @@ const run = async (filePattern: string, ignoreFiles: string) => {
         chalk.black.bgMagenta("Files found:"),
         chalk.white.bold(files.length)
     );
+    console.log("");
 
     let modified = 0;
     let ignored = 0;
@@ -50,7 +109,7 @@ const run = async (filePattern: string, ignoreFiles: string) => {
             encoding: "utf-8",
         });
 
-        if (content.search(COPYRIGHT_TEXT) === -1) {
+        if (content.search(checkText) === -1) {
             modified++;
             await file.write(contentToBuffer, 0, contentToBuffer.length, 0);
             await file.write(
@@ -61,13 +120,13 @@ const run = async (filePattern: string, ignoreFiles: string) => {
             );
             console.log(
                 chalk.white.bold(`"${path}"`) +
-                    chalk.black.bgGreen.bold("copyright added")
+                    chalk.black.bgGreen.bold(results.added)
             );
         } else {
             ignored++;
             console.log(
                 chalk.white.bold(`"${path}"`) +
-                    chalk.black.bgYellow.bold("already has copyright")
+                    chalk.black.bgYellow.bold(results.has)
             );
         }
 
@@ -81,4 +140,4 @@ const run = async (filePattern: string, ignoreFiles: string) => {
     );
 };
 
-run(FILE_PATTERN, FILE_IGNORE_PATTERN);
+run(FILE_PATTERN, FILE_IGNORE_PATTERN, CHECK_COPYRIGHT_TEXT);
