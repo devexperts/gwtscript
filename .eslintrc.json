@@ -19,8 +19,8 @@
     "ignorePatterns": [
         "./dir/",
         "run.ts"
-    ]//,
-    // "rules": {
-    //     "@typescript-eslint/explicit-module-boundary-types": "off"
-    // }
+    ],
+    "rules": {
+        "@typescript-eslint/no-explicit-any": "off"
+    }
 }

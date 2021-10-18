@@ -1,3 +1,10 @@
+/*
+Copyright (C) 2002 - 2021 Devexperts LLC
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+*/
+
 import * as ts from "typescript";
 import {
     ArrayType,
@@ -42,18 +49,17 @@ export const parseTypeNode = (
     }
 
     // checking for literals
-    if(ts.isLiteralTypeNode(node)) {
-        if(node.literal.kind === ts.SyntaxKind.StringLiteral) {
+    if (ts.isLiteralTypeNode(node)) {
+        if (node.literal.kind === ts.SyntaxKind.StringLiteral) {
             return some(new StringLiteral(node.literal.text));
         }
-        if(node.literal.kind === ts.SyntaxKind.NumericLiteral) {
+        if (node.literal.kind === ts.SyntaxKind.NumericLiteral) {
             return some(new NumberLiteral(Number(node.literal.text)));
         }
-        if(node.literal.kind === ts.SyntaxKind.NullKeyword) {
-            return some(new PrimitiveType("VOID"))
+        if (node.literal.kind === ts.SyntaxKind.NullKeyword) {
+            return some(new PrimitiveType("VOID"));
         }
     }
-
 
     // Function type detection
     if (ts.isFunctionTypeNode(node)) {
@@ -200,7 +206,7 @@ export const parseTypeNode = (
                                 name,
                                 type,
                             })
-                        )
+                        );
                     }
                     return none;
                 })

@@ -1,3 +1,10 @@
+/*
+Copyright (C) 2002 - 2021 Devexperts LLC
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+*/
+
 import * as ts from "typescript";
 import { NumberLiteral, ParsedType, StringLiteral, UnionType } from "../model";
 
@@ -6,7 +13,7 @@ import { PrimitiveType } from "../model";
 import { Option, some, none, sequenceArray, map } from "fp-ts/Option";
 import { pipe } from "fp-ts/lib/pipeable";
 
-export const getParsedType = (type: ts.Type): Option<ParsedType> => { 
+export const getParsedType = (type: ts.Type): Option<ParsedType> => {
     switch (type.flags) {
         case ts.TypeFlags.Number:
             return some(new PrimitiveType("NUMBER"));
@@ -44,13 +51,19 @@ export const getParsedType = (type: ts.Type): Option<ParsedType> => {
 const booleanDedup = (types: ParsedType[]): ParsedType[] => {
     const result: ParsedType[] = [];
 
-    for(const type of types) {
-        const last = result[result.length - 1]
-        if(last && last.identifier === "primitive" && type.identifier === "primitive" && last.type === "BOOLEAN" && type.type === "BOOLEAN") {
+    for (const type of types) {
+        const last = result[result.length - 1];
+        if (
+            last &&
+            last.identifier === "primitive" &&
+            type.identifier === "primitive" &&
+            last.type === "BOOLEAN" &&
+            type.type === "BOOLEAN"
+        ) {
             continue;
         }
         result.push(type);
     }
 
     return result;
-}
+};
