@@ -13,7 +13,8 @@
     },
     "include": [
         "src",
-        "run.ts"
+        "run.ts",
+        "addCopyright.ts"
     ],
     "exclude": [
         "**/__tests__/.*\\.(ts)$"
