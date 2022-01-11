@@ -5,8 +5,10 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { none, Option, some } from "fp-ts/lib/Option";
 import { PropertyName } from "typescript";
+import { Either, left, right } from "fp-ts/lib/Either";
+
+import { FailedToGetEscapedName } from "@root/parser/parser.errors";
 
 export class CannotGetEscapedTextError extends Error {
     constructor(public target: PropertyName) {
@@ -14,9 +16,11 @@ export class CannotGetEscapedTextError extends Error {
     }
 }
 
-export const getEscapedText = (name: PropertyName): Option<string> => {
+export const getEscapedText = (
+    name: PropertyName
+): Either<FailedToGetEscapedName, string> => {
     if ("escapedText" in name) {
-        return some(name.escapedText.toString());
+        return right(name.escapedText.toString());
     }
-    return none;
+    return left(new FailedToGetEscapedName(name));
 };

@@ -5,25 +5,34 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { Either, fromOption, chain } from "fp-ts/Either";
+import { Either, chainW, map } from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/pipeable";
-import { map } from "fp-ts/Option";
 import * as ts from "typescript";
+
+import { ParsingError } from "@root/utils/parseInJavaString";
 
 import { ParserOutput } from "../model";
 import { createProgram } from "../utils/createProgram";
 import { getNodesToTranspile } from "./getNodesToTranspile";
 import { mapSimplifiedInterfaces } from "./mapSimplifiedInterfaces";
+import {
+    CannotFindConfigError,
+    MapSimplifiedInterfacesError,
+} from "./parser.errors";
 import { ParserConfig } from "./parser.model";
-import { SimplifiedInterface } from "./unifyTypeOrInterface";
 
-export const parse = (config: ParserConfig): Either<unknown, ParserOutput> => {
+export const parse = (
+    config: ParserConfig
+): Either<
+    MapSimplifiedInterfacesError | ParsingError | CannotFindConfigError,
+    ParserOutput
+> => {
     return pipe(
         createProgram(config.tsconfigAbsolutePath),
-        chain((program: ts.Program) =>
+        chainW((program: ts.Program) =>
             pipe(
                 getNodesToTranspile(program, config),
-                chain((nodes: SimplifiedInterface[]) =>
+                chainW((nodes) =>
                     mapSimplifiedInterfaces(
                         nodes,
                         program.getTypeChecker(),
@@ -34,7 +43,8 @@ export const parse = (config: ParserConfig): Either<unknown, ParserOutput> => {
         ),
         map((typesToGenerate) => ({
             typesToGenerate,
-        })),
-        fromOption(() => "error")
+        }))
     );
 };
+
+export * as ParserErrors from "./parser.errors";

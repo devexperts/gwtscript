@@ -6,17 +6,34 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { Option, some, none, sequenceArray } from "fp-ts/Option";
 import { pipe } from "fp-ts/lib/pipeable";
-import { Either, right, map, mapLeft } from "fp-ts/lib/Either";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
+import { right, left, map as mapEither, mapLeft } from "fp-ts/lib/Either";
 
-import { NumberLiteral, ParsedType, StringLiteral, UnionType } from "../model";
+import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
 
-import { PrimitiveType } from "../model";
-import { sequenceEither } from "@root/utils/sequenceEither";
+import {
+    NumberLiteral,
+    ParsedType,
+    StringLiteral,
+    UnionType,
+    PrimitiveType,
+} from "../model";
+import { CannotParseTypeError, FailedToParseUnionError } from "./parser.errors";
 
+export interface GetParsedTypeEnv {
+    fieldName: string;
+    typeName: string;
+    location: string;
+}
 
-export const getParsedType = (type: ts.Type): Either<Error, ParsedType> => {
+export const getParsedType = (
+    type: ts.Type
+): ReaderEither<
+    GetParsedTypeEnv,
+    CannotParseTypeError | FailedToParseUnionError,
+    ParsedType
+> => (env) => {
     switch (type.flags) {
         case ts.TypeFlags.Number:
             return right(new PrimitiveType("NUMBER"));
@@ -42,14 +59,30 @@ export const getParsedType = (type: ts.Type): Either<Error, ParsedType> => {
             return right(new PrimitiveType("BOOLEAN"));
 
         return pipe(
-            sequenceEither(type.types.map(getParsedType)),
-            map(booleanDedup),
-            map((types) => new UnionType(types)),
-            mapLeft(errs => // HERE)
+            env,
+            sequenceReaderEither(type.types.map(getParsedType)),
+            mapEither(booleanDedup),
+            mapEither((types) => new UnionType(types)),
+            mapLeft(
+                (errs) =>
+                    new FailedToParseUnionError(
+                        env.typeName,
+                        env.fieldName,
+                        env.location,
+                        errs
+                    )
+            )
         );
     }
 
-    return none;
+    return left(
+        new CannotParseTypeError(
+            env.typeName,
+            env.fieldName,
+            env.location,
+            type
+        )
+    );
 };
 
 const booleanDedup = (types: ParsedType[]): ParsedType[] => {

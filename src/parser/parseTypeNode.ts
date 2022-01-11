@@ -18,31 +18,65 @@ import {
     UnionType,
 } from "../model";
 import { pipe } from "fp-ts/lib/function";
-import { flatten } from "fp-ts/lib/ReadonlyArray";
-import { Option, some, none, sequenceArray, filter } from "fp-ts/Option";
-import { Either, right, map, left, mapLeft } from "fp-ts/lib/Either";
+import {
+    right,
+    left,
+    map as mapEither,
+    mapLeft as mapLeftEither,
+} from "fp-ts/lib/Either";
+import {
+    ReaderEither,
+    mapLeft,
+    map,
+    left as readerLeft,
+} from "fp-ts/lib/ReaderEither";
 
-import { combineOptions } from "../utils/combineOptions";
+import { combineReaderEithers } from "@root/utils/combineReaderEithers";
+import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+import { combineEithers } from "@root/utils/combineEithers";
+import { sequenceEither } from "@root/utils/sequenceEither";
+
 import { getParsedType } from "./getParsedType";
 import { ParserConfig } from "./parser.model";
 import { getEscapedText } from "../utils/getEscapedText";
-import { combineEithers } from "@root/utils/combineEithers";
-import { sequenceEither } from "@root/utils/sequenceEither";
-import { UnknownSignatureError } from "./parser.errors";
+import {
+    CannotParseTypeNodeError,
+    FailedToParseFunctionParametersError,
+    FailedToParseFunctionReturnTypeError,
+    FailedToParseGenericParametersForNativeReferenceTypeError,
+    FailedToParseIntersectionError,
+    FailedToParseObjectError,
+    FailedToParsePrimitiveReferenceTypeError,
+    FailedToParseReferenceToTypeError,
+    FailedToParseUnionError,
+    UnknownSignatureError,
+} from "./parser.errors";
+import { flatten } from "fp-ts/lib/ReadonlyArray";
 
-export type ProcessingField = {
-    typeName: string,
-    fieldName: string,
-    location: string,
-}
+export type ParseTypeNode = {
+    typeName: string;
+    fieldName: string;
+    location: string;
+};
+
+export type ParseTypeNodeError =
+    | UnknownSignatureError
+    | CannotParseTypeNodeError
+    | FailedToParseFunctionReturnTypeError
+    | FailedToParseFunctionParametersError
+    | FailedToParseGenericParametersForNativeReferenceTypeError
+    | FailedToParsePrimitiveReferenceTypeError
+    | FailedToParseReferenceToTypeError
+    | FailedToParseObjectError
+    | FailedToParseUnionError
+    | FailedToParseIntersectionError;
 
 export const parseTypeNode = (
     node: ts.TypeNode | ts.TypeElement,
     checker: ts.TypeChecker,
     type: ts.Type,
-    config: ParserConfig,
-    processingField: ProcessingField
-): Either<UnknownSignatureError, ParsedType> => {
+    config: ParserConfig
+): ReaderEither<ParseTypeNode, ParseTypeNodeError, ParsedType> => (env) => {
     // Primitive detection
     switch (node.kind) {
         case ts.SyntaxKind.NumberKeyword:
@@ -80,22 +114,21 @@ export const parseTypeNode = (
                 ? declaration
                 : node;
         return pipe(
-            combineEithers(
+            env,
+            combineReaderEithers(
                 parseTypeNode(
                     func.type,
                     checker,
                     checker.getTypeAtLocation(func.type),
-                    config,
-                    processingField
+                    config
                 ),
-                sequenceEither(
+                sequenceReaderEither(
                     func.parameters.map((param) => {
                         return parseTypeNode(
                             param.type,
                             checker,
                             checker.getTypeAtLocation(param.type),
-                            config,
-                            processingField
+                            config
                         );
                     })
                 ),
@@ -103,8 +136,21 @@ export const parseTypeNode = (
                     return new FunctionType(returnType, fields);
                 }
             ),
-            mapLeft(err => {
-                // HERE
+            mapLeftEither((err) => {
+                if (err instanceof Array) {
+                    return new FailedToParseFunctionParametersError(
+                        env.typeName,
+                        env.fieldName,
+                        env.location,
+                        err
+                    );
+                }
+                return new FailedToParseFunctionReturnTypeError(
+                    env.typeName,
+                    env.fieldName,
+                    env.location,
+                    err
+                );
             })
         );
     }
@@ -116,30 +162,40 @@ export const parseTypeNode = (
             : null;
         if (identifier && config.nativeReferences.includes(identifier)) {
             return pipe(
-                sequenceEither(
+                env,
+                sequenceReaderEither(
                     node.typeArguments?.map((item) => {
                         return parseTypeNode(
                             item,
                             checker,
                             checker.getTypeFromTypeNode(item),
-                            config,
-                            processingField
+                            config
                         );
                     }) ?? []
                 ),
-                map(
+                mapEither(
                     (args) =>
                         new ReferenceType({
                             typeName: identifier,
                             genericArgs: args,
                         })
+                ),
+                mapLeftEither(
+                    (e) =>
+                        new FailedToParseGenericParametersForNativeReferenceTypeError(
+                            env.typeName,
+                            env.fieldName,
+                            env.location,
+                            e
+                        )
                 )
             );
         }
         // if reference type is a shape
         if (type.symbol) {
             return pipe(
-                sequenceEither(
+                env,
+                sequenceReaderEither(
                     type.getProperties().map((symbol) => {
                         const first = symbol.declarations[0];
                         if (ts.isPropertySignature(first)) {
@@ -148,8 +204,7 @@ export const parseTypeNode = (
                                     first.type,
                                     checker,
                                     checker.getTypeFromTypeNode(first.type),
-                                    config,
-                                    processingField
+                                    config
                                 ),
                                 map((parsed) => ({
                                     name: symbol.name,
@@ -158,42 +213,64 @@ export const parseTypeNode = (
                             );
                         }
                         if (ts.isMethodSignature(first)) {
-                            return combineEithers(
-                                parseTypeNode(
-                                    first.type,
-                                    checker,
-                                    checker.getTypeAtLocation(first.type),
-                                    config,
-                                    processingField
-                                ),
-                                sequenceEither(
-                                    first.parameters.map((param) => {
-                                        return parseTypeNode(
-                                            param.type,
-                                            checker,
-                                            checker.getTypeAtLocation(
-                                                param.type
+                            return pipe(
+                                combineReaderEithers(
+                                    parseTypeNode(
+                                        first.type,
+                                        checker,
+                                        checker.getTypeAtLocation(first.type),
+                                        config
+                                    ),
+                                    sequenceReaderEither(
+                                        first.parameters.map((param) => {
+                                            return parseTypeNode(
+                                                param.type,
+                                                checker,
+                                                checker.getTypeAtLocation(
+                                                    param.type
+                                                ),
+                                                config
+                                            );
+                                        })
+                                    ),
+                                    (returnType, fields) => {
+                                        return {
+                                            name: symbol.name,
+                                            type: new FunctionType(
+                                                returnType,
+                                                fields
                                             ),
-                                            config,
-                                            processingField
-                                        );
-                                    })
+                                        };
+                                    }
                                 ),
-                                (returnType, fields) => {
-                                    return {
-                                        name: symbol.name,
-                                        type: new FunctionType(
-                                            returnType,
-                                            fields
-                                        ),
-                                    };
-                                }
+                                mapLeft((err) => {
+                                    if (err instanceof Array) {
+                                        return new FailedToParseFunctionParametersError(
+                                            env.typeName,
+                                            env.fieldName,
+                                            env.location,
+                                            err
+                                        );
+                                    }
+                                    return new FailedToParseFunctionReturnTypeError(
+                                        env.typeName,
+                                        env.fieldName,
+                                        env.location,
+                                        err
+                                    );
+                                })
                             );
                         }
-                        return left(new UnknownSignatureError(processingField.typeName, processingField.fieldName, processingField.location));
+                        return readerLeft(
+                            new UnknownSignatureError(
+                                env.typeName,
+                                env.fieldName,
+                                env.location
+                            )
+                        );
                     })
                 ),
-                map(
+                mapEither(
                     (fields) =>
                         new ObjectType(
                             fields,
@@ -201,28 +278,48 @@ export const parseTypeNode = (
                                 ? node.typeName.getText()
                                 : undefined
                         )
+                ),
+                mapLeftEither(
+                    (e) =>
+                        new FailedToParseReferenceToTypeError(
+                            env.typeName,
+                            env.fieldName,
+                            env.location,
+                            e
+                        )
                 )
             );
         }
 
         // Unfortunately, in non-shape cases we only have ts.Type.
-        return getParsedType(type);
+        return pipe(
+            env,
+            getParsedType(type),
+            mapLeftEither(
+                (e) =>
+                    new FailedToParsePrimitiveReferenceTypeError(
+                        env.typeName,
+                        env.fieldName,
+                        env.location,
+                        e
+                    )
+            )
+        );
     }
 
     // Object fields
     if (ts.isTypeLiteralNode(node)) {
         return pipe(
-            sequenceArray(
+            sequenceEither(
                 node.members.map((type) => {
                     if (ts.isPropertySignature(type)) {
-                        return combineOptions(
+                        return combineEithers(
                             parseTypeNode(
                                 type.type,
                                 checker,
                                 checker.getTypeAtLocation(type.type),
-                                config,
-                                processingField
-                            ),
+                                config
+                            )(env),
                             // TODO fix node - parent relationship
                             getEscapedText(type.name),
                             (type, name) => ({
@@ -231,69 +328,113 @@ export const parseTypeNode = (
                             })
                         );
                     }
-                    return none;
+                    return left(
+                        new UnknownSignatureError(
+                            env.typeName,
+                            env.fieldName,
+                            env.location
+                        )
+                    );
                 })
             ),
-            map(
+            mapEither(
                 (fields: readonly { type: ParsedType; name: string }[]) =>
                     new ObjectType(fields)
-            )
+            ),
+            mapLeftEither((e) => {
+                return new FailedToParseObjectError(
+                    env.typeName,
+                    env.fieldName,
+                    env.location,
+                    e
+                );
+            })
         );
     }
 
     if (ts.isArrayTypeNode(node)) {
         return pipe(
+            env,
             parseTypeNode(
                 node.elementType,
                 checker,
                 checker.getTypeFromTypeNode(node.elementType),
-                config,
-                processingField
+                config
             ),
-            map((value) => new ArrayType(value))
+            mapEither((value) => new ArrayType(value))
         );
     }
 
     if (ts.isUnionTypeNode(node) && type.isUnion()) {
         return pipe(
-            sequenceArray(
+            env,
+            sequenceReaderEither(
                 node.types.map((typePart, i) =>
                     parseTypeNode(typePart, checker, type.types[i], config)
                 )
             ),
-            map((types) => new UnionType(types))
+            mapEither((types) => new UnionType(types)),
+            mapLeftEither(
+                (e) =>
+                    new FailedToParseUnionError(
+                        env.typeName,
+                        env.fieldName,
+                        env.location,
+                        e
+                    )
+            )
         );
     }
 
     if (ts.isParenthesizedTypeNode(node)) {
-        return parseTypeNode(
-            node.type,
-            checker,
-            checker.getTypeFromTypeNode(node.type),
-            config,
-            processingField
+        return pipe(
+            env,
+            parseTypeNode(
+                node.type,
+                checker,
+                checker.getTypeFromTypeNode(node.type),
+                config
+            )
         );
     }
 
     if (ts.isIntersectionTypeNode(node) && type.isIntersection()) {
         return pipe(
-            sequenceArray(
+            env,
+            sequenceReaderEither(
                 node.types.map((item, i) => {
                     return pipe(
-                        parseTypeNode(item, checker, type.types[i], config),
-                        filter(
-                            (type): type is ObjectType =>
-                                type instanceof ObjectType
-                        )
+                        parseTypeNode(item, checker, type.types[i], config)
                     );
                 })
             ),
-            map(
+            mapEither((value) =>
+                value.filter(
+                    (type): type is ObjectType => type instanceof ObjectType
+                )
+            ),
+            mapEither(
                 (objects) =>
                     new ObjectType(flatten(objects.map((item) => item.type)))
+            ),
+            mapLeftEither(
+                (err) =>
+                    new FailedToParseIntersectionError(
+                        env.typeName,
+                        env.fieldName,
+                        env.location,
+                        err
+                    )
             )
         );
     }
 
-    return none;
+    return left(
+        new CannotParseTypeNodeError(
+            env.typeName,
+            env.fieldName,
+            env.location,
+            node
+        )
+    );
 };
