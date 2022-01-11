@@ -6,29 +6,32 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
+import { Option, some, none, sequenceArray } from "fp-ts/Option";
+import { pipe } from "fp-ts/lib/pipeable";
+import { Either, right, map, mapLeft } from "fp-ts/lib/Either";
+
 import { NumberLiteral, ParsedType, StringLiteral, UnionType } from "../model";
 
 import { PrimitiveType } from "../model";
+import { sequenceEither } from "@root/utils/sequenceEither";
 
-import { Option, some, none, sequenceArray, map } from "fp-ts/Option";
-import { pipe } from "fp-ts/lib/pipeable";
 
-export const getParsedType = (type: ts.Type): Option<ParsedType> => {
+export const getParsedType = (type: ts.Type): Either<Error, ParsedType> => {
     switch (type.flags) {
         case ts.TypeFlags.Number:
-            return some(new PrimitiveType("NUMBER"));
+            return right(new PrimitiveType("NUMBER"));
         case ts.TypeFlags.String:
-            return some(new PrimitiveType("STRING"));
+            return right(new PrimitiveType("STRING"));
         case ts.TypeFlags.BooleanLiteral:
-            return some(new PrimitiveType("BOOLEAN"));
+            return right(new PrimitiveType("BOOLEAN"));
         case ts.TypeFlags.Null:
         case ts.TypeFlags.Undefined:
         case ts.TypeFlags.Void:
-            return some(new PrimitiveType("VOID"));
+            return right(new PrimitiveType("VOID"));
     }
 
-    if (type.isStringLiteral()) return some(new StringLiteral(type.value));
-    if (type.isNumberLiteral()) return some(new NumberLiteral(type.value));
+    if (type.isStringLiteral()) return right(new StringLiteral(type.value));
+    if (type.isNumberLiteral()) return right(new NumberLiteral(type.value));
 
     if (type.isUnion()) {
         if (
@@ -36,12 +39,13 @@ export const getParsedType = (type: ts.Type): Option<ParsedType> => {
             type.types[0].flags === ts.TypeFlags.BooleanLiteral &&
             type.types[1].flags === ts.TypeFlags.BooleanLiteral
         )
-            return some(new PrimitiveType("BOOLEAN"));
+            return right(new PrimitiveType("BOOLEAN"));
 
         return pipe(
-            sequenceArray(type.types.map(getParsedType)),
+            sequenceEither(type.types.map(getParsedType)),
             map(booleanDedup),
-            map((types) => new UnionType(types))
+            map((types) => new UnionType(types)),
+            mapLeft(errs => // HERE)
         );
     }
 

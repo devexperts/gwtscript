@@ -17,47 +17,58 @@ import {
     StringLiteral,
     UnionType,
 } from "../model";
+import { pipe } from "fp-ts/lib/function";
+import { flatten } from "fp-ts/lib/ReadonlyArray";
+import { Option, some, none, sequenceArray, filter } from "fp-ts/Option";
+import { Either, right, map, left, mapLeft } from "fp-ts/lib/Either";
 
-import { Option, some, none, sequenceArray, map, filter } from "fp-ts/Option";
 import { combineOptions } from "../utils/combineOptions";
 import { getParsedType } from "./getParsedType";
 import { ParserConfig } from "./parser.model";
-import { pipe } from "fp-ts/lib/function";
-import { flatten } from "fp-ts/lib/ReadonlyArray";
 import { getEscapedText } from "../utils/getEscapedText";
+import { combineEithers } from "@root/utils/combineEithers";
+import { sequenceEither } from "@root/utils/sequenceEither";
+import { UnknownSignatureError } from "./parser.errors";
+
+export type ProcessingField = {
+    typeName: string,
+    fieldName: string,
+    location: string,
+}
 
 export const parseTypeNode = (
     node: ts.TypeNode | ts.TypeElement,
     checker: ts.TypeChecker,
     type: ts.Type,
-    config: ParserConfig
-): Option<ParsedType> => {
+    config: ParserConfig,
+    processingField: ProcessingField
+): Either<UnknownSignatureError, ParsedType> => {
     // Primitive detection
     switch (node.kind) {
         case ts.SyntaxKind.NumberKeyword:
-            return some(new PrimitiveType("NUMBER"));
+            return right(new PrimitiveType("NUMBER"));
         case ts.SyntaxKind.StringKeyword:
-            return some(new PrimitiveType("STRING"));
+            return right(new PrimitiveType("STRING"));
         case ts.SyntaxKind.NullKeyword:
         case ts.SyntaxKind.UndefinedKeyword:
         case ts.SyntaxKind.VoidKeyword:
-            return some(new PrimitiveType("VOID"));
+            return right(new PrimitiveType("VOID"));
         case ts.SyntaxKind.BooleanKeyword:
-            return some(new PrimitiveType("BOOLEAN"));
+            return right(new PrimitiveType("BOOLEAN"));
         case ts.SyntaxKind.AnyKeyword:
-            return some(new PrimitiveType("ANY"));
+            return right(new PrimitiveType("ANY"));
     }
 
     // checking for literals
     if (ts.isLiteralTypeNode(node)) {
         if (node.literal.kind === ts.SyntaxKind.StringLiteral) {
-            return some(new StringLiteral(node.literal.text));
+            return right(new StringLiteral(node.literal.text));
         }
         if (node.literal.kind === ts.SyntaxKind.NumericLiteral) {
-            return some(new NumberLiteral(Number(node.literal.text)));
+            return right(new NumberLiteral(Number(node.literal.text)));
         }
         if (node.literal.kind === ts.SyntaxKind.NullKeyword) {
-            return some(new PrimitiveType("VOID"));
+            return right(new PrimitiveType("VOID"));
         }
     }
 
@@ -68,26 +79,33 @@ export const parseTypeNode = (
             declaration && ts.isMethodSignature(declaration)
                 ? declaration
                 : node;
-        return combineOptions(
-            parseTypeNode(
-                func.type,
-                checker,
-                checker.getTypeAtLocation(func.type),
-                config
+        return pipe(
+            combineEithers(
+                parseTypeNode(
+                    func.type,
+                    checker,
+                    checker.getTypeAtLocation(func.type),
+                    config,
+                    processingField
+                ),
+                sequenceEither(
+                    func.parameters.map((param) => {
+                        return parseTypeNode(
+                            param.type,
+                            checker,
+                            checker.getTypeAtLocation(param.type),
+                            config,
+                            processingField
+                        );
+                    })
+                ),
+                (returnType, fields) => {
+                    return new FunctionType(returnType, fields);
+                }
             ),
-            sequenceArray(
-                func.parameters.map((param) => {
-                    return parseTypeNode(
-                        param.type,
-                        checker,
-                        checker.getTypeAtLocation(param.type),
-                        config
-                    );
-                })
-            ),
-            (returnType, fields) => {
-                return new FunctionType(returnType, fields);
-            }
+            mapLeft(err => {
+                // HERE
+            })
         );
     }
 
@@ -98,13 +116,14 @@ export const parseTypeNode = (
             : null;
         if (identifier && config.nativeReferences.includes(identifier)) {
             return pipe(
-                sequenceArray(
+                sequenceEither(
                     node.typeArguments?.map((item) => {
                         return parseTypeNode(
                             item,
                             checker,
                             checker.getTypeFromTypeNode(item),
-                            config
+                            config,
+                            processingField
                         );
                     }) ?? []
                 ),
@@ -120,7 +139,7 @@ export const parseTypeNode = (
         // if reference type is a shape
         if (type.symbol) {
             return pipe(
-                sequenceArray(
+                sequenceEither(
                     type.getProperties().map((symbol) => {
                         const first = symbol.declarations[0];
                         if (ts.isPropertySignature(first)) {
@@ -129,7 +148,8 @@ export const parseTypeNode = (
                                     first.type,
                                     checker,
                                     checker.getTypeFromTypeNode(first.type),
-                                    config
+                                    config,
+                                    processingField
                                 ),
                                 map((parsed) => ({
                                     name: symbol.name,
@@ -138,14 +158,15 @@ export const parseTypeNode = (
                             );
                         }
                         if (ts.isMethodSignature(first)) {
-                            return combineOptions(
+                            return combineEithers(
                                 parseTypeNode(
                                     first.type,
                                     checker,
                                     checker.getTypeAtLocation(first.type),
-                                    config
+                                    config,
+                                    processingField
                                 ),
-                                sequenceArray(
+                                sequenceEither(
                                     first.parameters.map((param) => {
                                         return parseTypeNode(
                                             param.type,
@@ -153,7 +174,8 @@ export const parseTypeNode = (
                                             checker.getTypeAtLocation(
                                                 param.type
                                             ),
-                                            config
+                                            config,
+                                            processingField
                                         );
                                     })
                                 ),
@@ -168,7 +190,7 @@ export const parseTypeNode = (
                                 }
                             );
                         }
-                        return none;
+                        return left(new UnknownSignatureError(processingField.typeName, processingField.fieldName, processingField.location));
                     })
                 ),
                 map(
@@ -198,7 +220,8 @@ export const parseTypeNode = (
                                 type.type,
                                 checker,
                                 checker.getTypeAtLocation(type.type),
-                                config
+                                config,
+                                processingField
                             ),
                             // TODO fix node - parent relationship
                             getEscapedText(type.name),
@@ -224,7 +247,8 @@ export const parseTypeNode = (
                 node.elementType,
                 checker,
                 checker.getTypeFromTypeNode(node.elementType),
-                config
+                config,
+                processingField
             ),
             map((value) => new ArrayType(value))
         );
@@ -246,7 +270,8 @@ export const parseTypeNode = (
             node.type,
             checker,
             checker.getTypeFromTypeNode(node.type),
-            config
+            config,
+            processingField
         );
     }
 

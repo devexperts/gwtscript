@@ -6,12 +6,12 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { ParserConfig } from "./parser.model";
+import { Either, isRight, left, right } from "fp-ts/lib/Either";
 
-import { none, Option, some } from "fp-ts/Option";
+import { ParserConfig } from "./parser.model";
 import { UserType } from "../model";
-import { parseInJavaString } from "../utils/parseInJavaString";
-import { isRight } from "fp-ts/lib/Either";
+import { parseInJavaString, ParsingError } from "../utils/parseInJavaString";
+import { EmptyShapeException } from "./parser.errors";
 
 export interface SimplifiedInterface {
     name: string;
@@ -29,12 +29,12 @@ export const unifyTypeOrInterface = (
     config: ParserConfig,
     filePath: string,
     checker: ts.TypeChecker
-): Option<SimplifiedInterface> => {
+): Either<EmptyShapeException | ParsingError, SimplifiedInterface> => {
     const fields: SimplifiedInterface["fields"] = [];
 
     const props = type.getProperties();
 
-    if (props.length === 0) return none;
+    if (props.length === 0) return left(new EmptyShapeException(node.name.escapedText.toString(), filePath));
 
     for (const symbol of props) {
         let userInput: undefined | UserType = undefined;
@@ -62,7 +62,7 @@ export const unifyTypeOrInterface = (
                     if (isRight(result)) {
                         userInput = result.right;
                     } else {
-                        return none;
+                        return result;
                     }
                 }
             }
@@ -78,7 +78,7 @@ export const unifyTypeOrInterface = (
         });
     }
 
-    return some({
+    return right({
         name: node.name.escapedText.toString(),
         fields,
         filePath,

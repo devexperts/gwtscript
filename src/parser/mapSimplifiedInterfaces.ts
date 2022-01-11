@@ -14,25 +14,27 @@ import * as ts from "typescript";
 import { Option, sequenceArray, map, some } from "fp-ts/Option";
 import { ParserConfig } from "./parser.model";
 import { pipe } from "fp-ts/lib/function";
+import { Either, right } from "fp-ts/lib/Either";
+import { sequenceEither } from "@root/utils/sequenceEither";
 
 export const mapSimplifiedInterfaces = (
     interfaces: SimplifiedInterface[],
     checker: ts.TypeChecker,
     config: ParserConfig
-): Option<readonly TypeToGenerate[]> => {
-    return sequenceArray(
-        interfaces.map((node) => {
+): Either<any, readonly TypeToGenerate[]> => {
+    return sequenceEither(
+        interfaces.map((interface) => {
             return pipe(
-                sequenceArray(
-                    node.fields.map(({ name, type, node, userInput }) => {
+                sequenceEither(
+                    interface.fields.map(({ name, type, node, userInput }) => {
                         if (userInput) {
-                            return some({
+                            return right({
                                 name,
                                 type: userInput,
                             });
                         }
                         return pipe(
-                            parseTypeNode(node, checker, type, config),
+                            parseTypeNode(node, checker, type, config, { fieldName: name, location: interface.filePath, typeName: name }),
                             map((value) => ({
                                 name,
                                 type: value,

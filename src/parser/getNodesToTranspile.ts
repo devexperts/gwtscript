@@ -6,18 +6,22 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { ParserConfig } from "./parser.model";
-import { Option, none, some, isSome } from "fp-ts/Option";
+import { Either, isRight, left, right } from "fp-ts/lib/Either";
 
+import { chalk } from "@chalk";
+import { ParsingError } from "@root/utils/parseInJavaString";
+
+import { ParserConfig } from "./parser.model";
 import {
     SimplifiedInterface,
     unifyTypeOrInterface,
 } from "./unifyTypeOrInterface";
+import { EmptyShapeException } from "./parser.errors";
 
 export const getNodesToTranspile = (
     program: ts.Program,
     config: ParserConfig
-): Option<SimplifiedInterface[]> => {
+): Either<ParsingError, SimplifiedInterface[]> => {
     const fileNames = program.getRootFileNames();
 
     const results: SimplifiedInterface[] = [];
@@ -37,7 +41,10 @@ export const getNodesToTranspile = (
                 const checked = checker.getTypeAtLocation(node);
 
                 // check that type is a shape declaration
-                if (!checked.symbol?.declarations?.length) continue;
+                if (!checked.symbol?.declarations?.length) {
+                    console.warn(chalk.bgYellow.black(`Type ${node.name.escapedText} (location: "${name}") was ignored because its's not an object type`))
+                    continue;
+                }
                 const simplified = unifyTypeOrInterface(
                     node,
                     checked,
@@ -46,12 +53,19 @@ export const getNodesToTranspile = (
                     checker
                 );
 
-                if (isSome(simplified)) {
-                    results.push(simplified.value);
+                if (isRight(simplified)) {
+                    results.push(simplified.right);
                     continue;
                 }
 
-                return none;
+                const error = simplified.left;
+
+                if(error instanceof EmptyShapeException) {
+                    console.warn(chalk.bgYellow.black(error.message))
+                    continue;
+                }
+                
+                return left(error)
             }
         }
     }
@@ -64,5 +78,5 @@ export const getNodesToTranspile = (
         }
     }
 
-    return some(results);
+    return right(results);
 };
