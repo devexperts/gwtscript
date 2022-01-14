@@ -7,18 +7,22 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import "module-alias/register";
 import { outputFile } from "fs-extra";
+import { chainW, fold } from "fp-ts/Either";
+import { pipe } from "fp-ts/lib/function";
+
 import { generate } from "./generator";
 import { GeneratorConfig } from "./generator/generator.config";
 import { parse } from "./parser";
 import { ParserConfig } from "./parser/parser.model";
 
-import { chainW, fold } from "fp-ts/Either";
 import { GeneratorResult } from "./generator/model";
 import {
     defaultInterfacePredicate,
     defaultFieldPredicate,
 } from "./utils/defaultPredicates";
-import { pipe } from "fp-ts/lib/function";
+import { MapSimplifiedInterfacesError } from "./parser/parser.errors";
+import { chalk } from "./utils/chalk";
+import { printParseTypeNodeError } from "./utils/printParseTypeNodeError";
 
 export type CompilerConfig = Omit<
     ParserConfig,
@@ -67,7 +71,25 @@ export const compile = (config: CompilerConfig): void => {
             })
         ),
         fold(
-            (e) => console.error(e),
+            (e) => {
+                if (!(e instanceof MapSimplifiedInterfacesError))
+                    return console.error(e);
+                console.log(chalk.bgRed.black(e.message));
+                for (const error of e.errors) {
+                    console.group();
+                    console.log(chalk.bold.red(error.message));
+
+                    console.group();
+                    for (const fieldError of error.errors) {
+                        console.log(chalk.bold.red(fieldError.fieldName + ":"));
+                        console.group();
+                        printParseTypeNodeError(fieldError.error);
+                        console.groupEnd();
+                    }
+                    console.groupEnd();
+                    console.groupEnd();
+                }
+            },
             (res: GeneratorResult[]) => {
                 res.forEach((file) => {
                     outputFile(file.path, file.content);

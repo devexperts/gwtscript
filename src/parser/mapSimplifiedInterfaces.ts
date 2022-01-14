@@ -17,6 +17,7 @@ import { SimplifiedInterface } from "./unifyTypeOrInterface";
 import { TypeToGenerate } from "../model";
 import {
     FailedToParseInterface,
+    FailedToParseInterfaceFieldError,
     MapSimplifiedInterfacesError,
 } from "./parser.errors";
 
@@ -50,7 +51,15 @@ export const mapSimplifiedInterfaces = (
                                 map((value) => ({
                                     name,
                                     type: value,
-                                }))
+                                })),
+                                mapLeft((e) => {
+                                    return new FailedToParseInterfaceFieldError(
+                                        entity.name,
+                                        name,
+                                        entity.filePath,
+                                        e
+                                    );
+                                })
                             );
                         })
                     ),

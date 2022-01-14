@@ -17,14 +17,18 @@ import { getNodesToTranspile } from "./getNodesToTranspile";
 import { mapSimplifiedInterfaces } from "./mapSimplifiedInterfaces";
 import {
     CannotFindConfigError,
+    FailedToParseInterface,
     MapSimplifiedInterfacesError,
 } from "./parser.errors";
 import { ParserConfig } from "./parser.model";
+import { ParseTypeNodeError } from "./parseTypeNode";
 
 export const parse = (
     config: ParserConfig
 ): Either<
-    MapSimplifiedInterfacesError | ParsingError | CannotFindConfigError,
+    | MapSimplifiedInterfacesError<FailedToParseInterface<ParseTypeNodeError>>
+    | ParsingError
+    | CannotFindConfigError,
     ParserOutput
 > => {
     return pipe(

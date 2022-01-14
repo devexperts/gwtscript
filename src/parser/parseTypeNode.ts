@@ -6,17 +6,6 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import {
-    ArrayType,
-    FunctionType,
-    NumberLiteral,
-    ObjectType,
-    ParsedType,
-    PrimitiveType,
-    ReferenceType,
-    StringLiteral,
-    UnionType,
-} from "../model";
 import { pipe } from "fp-ts/lib/function";
 import {
     right,
@@ -30,28 +19,42 @@ import {
     map,
     left as readerLeft,
 } from "fp-ts/lib/ReaderEither";
+import { flatten } from "fp-ts/lib/ReadonlyArray";
 
 import { combineReaderEithers } from "@root/utils/combineReaderEithers";
 import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
-import { combineEithers } from "@root/utils/combineEithers";
 import { sequenceEither } from "@root/utils/sequenceEither";
+import { chainLeftReader } from "@root/utils/chainLeftReader";
 
-import { getParsedType } from "./getParsedType";
+import { getParsedType, GetParsedTypeError } from "./getParsedType";
 import { ParserConfig } from "./parser.model";
 import { getEscapedText } from "../utils/getEscapedText";
 import {
     CannotParseTypeNodeError,
+    FailedToGetEscapedName,
+    FailedToParseFunctionParameterError,
     FailedToParseFunctionParametersError,
     FailedToParseFunctionReturnTypeError,
     FailedToParseGenericParametersForNativeReferenceTypeError,
     FailedToParseIntersectionError,
     FailedToParseObjectError,
+    FailedToParseObjectFieldError,
     FailedToParsePrimitiveReferenceTypeError,
     FailedToParseReferenceToTypeError,
     FailedToParseUnionError,
     UnknownSignatureError,
 } from "./parser.errors";
-import { flatten } from "fp-ts/lib/ReadonlyArray";
+import {
+    ArrayType,
+    FunctionType,
+    NumberLiteral,
+    ObjectType,
+    ParsedType,
+    PrimitiveType,
+    ReferenceType,
+    StringLiteral,
+    UnionType,
+} from "../model";
 
 export type ParseTypeNode = {
     typeName: string;
@@ -62,14 +65,15 @@ export type ParseTypeNode = {
 export type ParseTypeNodeError =
     | UnknownSignatureError
     | CannotParseTypeNodeError
-    | FailedToParseFunctionReturnTypeError
-    | FailedToParseFunctionParametersError
-    | FailedToParseGenericParametersForNativeReferenceTypeError
-    | FailedToParsePrimitiveReferenceTypeError
-    | FailedToParseReferenceToTypeError
-    | FailedToParseObjectError
-    | FailedToParseUnionError
-    | FailedToParseIntersectionError;
+    | FailedToParseFunctionReturnTypeError<ParseTypeNodeError>
+    | FailedToParseFunctionParametersError<ParseTypeNodeError>
+    | FailedToParseGenericParametersForNativeReferenceTypeError<ParseTypeNodeError>
+    | FailedToParsePrimitiveReferenceTypeError<GetParsedTypeError>
+    | FailedToParseReferenceToTypeError<ParseTypeNodeError>
+    | FailedToParseObjectError<ParseTypeNodeError>
+    | FailedToParseUnionError<ParseTypeNodeError>
+    | FailedToParseIntersectionError<ParseTypeNodeError>
+    | FailedToGetEscapedName;
 
 export const parseTypeNode = (
     node: ts.TypeNode | ts.TypeElement,
@@ -108,27 +112,63 @@ export const parseTypeNode = (
 
     // Function type detection
     if (ts.isFunctionTypeNode(node)) {
+        const signature = type.getCallSignatures()[0];
         const declaration = type.symbol?.declarations[0];
+
         const func =
             declaration && ts.isMethodSignature(declaration)
                 ? declaration
                 : node;
+
         return pipe(
             env,
             combineReaderEithers(
                 parseTypeNode(
                     func.type,
                     checker,
-                    checker.getTypeAtLocation(func.type),
+                    signature.getReturnType(),
                     config
                 ),
                 sequenceReaderEither(
-                    func.parameters.map((param) => {
-                        return parseTypeNode(
-                            param.type,
-                            checker,
-                            checker.getTypeAtLocation(param.type),
-                            config
+                    func.parameters.map((param, i) => {
+                        const parameterSymbol = signature.parameters[i];
+
+                        return pipe(
+                            parseTypeNode(
+                                param.type,
+                                checker,
+                                checker.getTypeAtLocation(
+                                    parameterSymbol.valueDeclaration
+                                ),
+                                config
+                            ),
+                            chainLeftReader((err) => {
+                                return pipe(
+                                    getEscapedText(param.name),
+                                    mapEither(
+                                        (name) =>
+                                            new FailedToParseFunctionParameterError(
+                                                env.typeName,
+                                                env.fieldName,
+                                                env.location,
+                                                name,
+                                                err
+                                            )
+                                    )
+                                );
+                            }),
+                            mapLeft((error) => {
+                                if (error instanceof FailedToGetEscapedName)
+                                    return new FailedToParseFunctionParameterError(
+                                        env.typeName,
+                                        env.fieldName,
+                                        env.location,
+                                        "failedToGetName",
+                                        error
+                                    );
+
+                                return error;
+                            })
                         );
                     })
                 ),
@@ -191,8 +231,10 @@ export const parseTypeNode = (
                 )
             );
         }
-        // if reference type is a shape
+
+        // if reference type is a shape and an interface
         if (type.symbol) {
+            const name = getEscapedText(node.typeName);
             return pipe(
                 env,
                 sequenceReaderEither(
@@ -223,13 +265,47 @@ export const parseTypeNode = (
                                     ),
                                     sequenceReaderEither(
                                         first.parameters.map((param) => {
-                                            return parseTypeNode(
-                                                param.type,
-                                                checker,
-                                                checker.getTypeAtLocation(
-                                                    param.type
+                                            return pipe(
+                                                parseTypeNode(
+                                                    param.type,
+                                                    checker,
+                                                    checker.getTypeAtLocation(
+                                                        param.type
+                                                    ),
+                                                    config
                                                 ),
-                                                config
+                                                chainLeftReader((err) => {
+                                                    return pipe(
+                                                        getEscapedText(
+                                                            param.name
+                                                        ),
+                                                        mapEither(
+                                                            (name) =>
+                                                                new FailedToParseFunctionParameterError(
+                                                                    env.typeName,
+                                                                    env.fieldName,
+                                                                    env.location,
+                                                                    name,
+                                                                    err
+                                                                )
+                                                        )
+                                                    );
+                                                }),
+                                                mapLeft((error) => {
+                                                    if (
+                                                        error instanceof
+                                                        FailedToGetEscapedName
+                                                    )
+                                                        return new FailedToParseFunctionParameterError(
+                                                            env.typeName,
+                                                            env.fieldName,
+                                                            env.location,
+                                                            "failedToGetName",
+                                                            error
+                                                        );
+
+                                                    return error;
+                                                })
                                             );
                                         })
                                     ),
@@ -265,7 +341,8 @@ export const parseTypeNode = (
                             new UnknownSignatureError(
                                 env.typeName,
                                 env.fieldName,
-                                env.location
+                                env.location,
+                                symbol.name
                             )
                         );
                     })
@@ -274,9 +351,7 @@ export const parseTypeNode = (
                     (fields) =>
                         new ObjectType(
                             fields,
-                            type.isClassOrInterface()
-                                ? node.typeName.getText()
-                                : undefined
+                            name._tag === "Right" ? name.right : undefined
                         )
                 ),
                 mapLeftEither(
@@ -289,6 +364,11 @@ export const parseTypeNode = (
                         )
                 )
             );
+        }
+
+        // if its a shape and a type declaration
+        if (ts.isIdentifier(node.typeName)) {
+            // console.log(node.typeName.text, node.typeName["symbol"].declarations.length)
         }
 
         // Unfortunately, in non-shape cases we only have ts.Type.
@@ -311,28 +391,46 @@ export const parseTypeNode = (
     if (ts.isTypeLiteralNode(node)) {
         return pipe(
             sequenceEither(
-                node.members.map((type) => {
+                type.getProperties().map((symbol) => {
+                    const type = symbol.valueDeclaration;
+
                     if (ts.isPropertySignature(type)) {
-                        return combineEithers(
+                        return pipe(
+                            env,
                             parseTypeNode(
                                 type.type,
                                 checker,
                                 checker.getTypeAtLocation(type.type),
                                 config
-                            )(env),
-                            // TODO fix node - parent relationship
-                            getEscapedText(type.name),
-                            (type, name) => ({
-                                name,
+                            ),
+                            mapEither((type) => ({
                                 type,
-                            })
+                                name: symbol.name,
+                            })),
+                            mapLeftEither(
+                                (e) =>
+                                    new FailedToParseObjectFieldError(
+                                        env.typeName,
+                                        env.fieldName,
+                                        env.location,
+                                        symbol.name,
+                                        e
+                                    )
+                            )
                         );
                     }
                     return left(
-                        new UnknownSignatureError(
+                        new FailedToParseObjectFieldError(
                             env.typeName,
                             env.fieldName,
-                            env.location
+                            env.location,
+                            symbol.name,
+                            new UnknownSignatureError(
+                                env.typeName,
+                                env.fieldName,
+                                env.location,
+                                symbol.name
+                            )
                         )
                     );
                 })

@@ -27,13 +27,13 @@ export interface GetParsedTypeEnv {
     location: string;
 }
 
+export type GetParsedTypeError =
+    | CannotParseTypeError
+    | FailedToParseUnionError<GetParsedTypeError>;
+
 export const getParsedType = (
     type: ts.Type
-): ReaderEither<
-    GetParsedTypeEnv,
-    CannotParseTypeError | FailedToParseUnionError,
-    ParsedType
-> => (env) => {
+): ReaderEither<GetParsedTypeEnv, GetParsedTypeError, ParsedType> => (env) => {
     switch (type.flags) {
         case ts.TypeFlags.Number:
             return right(new PrimitiveType("NUMBER"));
