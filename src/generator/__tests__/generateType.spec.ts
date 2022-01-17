@@ -1,4 +1,5 @@
 import { right } from "fp-ts/lib/Either";
+
 import {
     ArrayType,
     FunctionType,
@@ -16,35 +17,18 @@ import { GeneratorConfig } from "../generator.config";
 describe("generateType()", () => {
     const config: GeneratorConfig = {
         destinationFolder: "/dist/",
-        generateArrayType: (arr, stringify) => {
-            const { imports, result } = stringify(arr.type);
-
+        generateArrayType: (type) => {
             return {
-                imports: ["com.js.JsArray", ...imports],
-                result: `JsArray<${result}>`,
+                imports: ["com.js.JsArray"],
+                result: `JsArray<${type}>`,
             };
         },
-        generateFunctionType: (func, stringify) => {
-            const { result, imports: resImports } = stringify(func.type);
-
-            const other = func.parameters
-                .map((item) => stringify(item))
-                .reduce<{ types: string[]; imports: string[] }>(
-                    (prev, cur) => {
-                        return {
-                            types: prev.types.concat(cur.result),
-                            imports: prev.imports.concat(cur.imports),
-                        };
-                    },
-                    {
-                        types: [],
-                        imports: [],
-                    }
-                );
-
+        generateFunctionType: (params, type) => {
             return {
-                imports: ["com.js.JsFunc", ...resImports, ...other.imports],
-                result: `JsFunc<${other.types.join(", ")}, ${result}>`,
+                imports: ["com.js.JsFunc"],
+                result: `JsFunc<${params
+                    .map((t) => t.type)
+                    .join(", ")}, ${type}>`,
             };
         },
         nativeReferencesMap: {
@@ -84,100 +68,94 @@ describe("generateType()", () => {
 
     it("works in common cases", () => {
         expect(
-            generateType(
-                {
-                    name: "Test",
-                    fields: [
-                        {
-                            name: "objField",
-                            type: new ObjectType([
-                                {
-                                    name: "a",
-                                    type: new PrimitiveType("NUMBER"),
-                                },
-                                {
-                                    name: "b",
-                                    type: new PrimitiveType("STRING"),
-                                },
-                            ]),
-                        },
-                        {
-                            name: "numField",
-                            type: new PrimitiveType("NUMBER"),
-                        },
-                        {
-                            name: "array",
-                            type: new ArrayType(new PrimitiveType("BOOLEAN")),
-                        },
-                        {
-                            name: "calcSum",
-                            type: new FunctionType(
-                                new PrimitiveType("NUMBER"),
-                                [
-                                    new PrimitiveType("NUMBER"),
-                                    new PrimitiveType("NUMBER"),
-                                ]
-                            ),
-                        },
-                        {
-                            name: "refable",
-                            type: new ReferenceType({
-                                typeName: "Observable",
-                                genericArgs: [
-                                    new ObjectType([
-                                        {
-                                            name: "event",
-                                            type: new ReferenceType({
-                                                genericArgs: [],
-                                                typeName: "Event",
-                                            }),
-                                        },
-                                    ]),
-                                ],
-                            }),
-                        },
-                        {
-                            name: "userTest",
-                            type: new UserType({
-                                text: "Observable<Event>",
-                                imports: ["com.rx.Observable", "com.js.Event"],
-                            }),
-                        },
-                        {
-                            name: "stringUnionNullable",
-                            type: new UnionType([
-                                new StringLiteral("option1"),
-                                new StringLiteral("option2"),
-                                new PrimitiveType("VOID"),
-                            ]),
-                        },
-                        {
-                            name: "stringUnion",
-                            type: new UnionType([
-                                new StringLiteral("option1"),
-                                new StringLiteral("option2"),
-                            ]),
-                        },
-                        {
-                            name: "numberUnion",
-                            type: new UnionType([
-                                new NumberLiteral(1),
-                                new NumberLiteral(2),
-                            ]),
-                        },
-                        {
-                            name: "numberUnionNullable",
-                            type: new UnionType([
-                                new NumberLiteral(1),
-                                new NumberLiteral(2),
-                                new PrimitiveType("VOID"),
-                            ]),
-                        },
-                    ],
-                    sourcePath: "asd/asdss/aaa/test.ts",
-                },
-                config
-            )
+            generateType({
+                name: "Test",
+                fields: [
+                    {
+                        name: "objField",
+                        type: new ObjectType([
+                            {
+                                name: "a",
+                                type: new PrimitiveType("NUMBER"),
+                            },
+                            {
+                                name: "b",
+                                type: new PrimitiveType("STRING"),
+                            },
+                        ]),
+                    },
+                    {
+                        name: "numField",
+                        type: new PrimitiveType("NUMBER"),
+                    },
+                    {
+                        name: "array",
+                        type: new ArrayType(new PrimitiveType("BOOLEAN")),
+                    },
+                    {
+                        name: "calcSum",
+                        type: new FunctionType(new PrimitiveType("NUMBER"), [
+                            { name: "a", type: new PrimitiveType("NUMBER") },
+                            { name: "b", type: new PrimitiveType("NUMBER") },
+                        ]),
+                    },
+                    {
+                        name: "refable",
+                        type: new ReferenceType({
+                            typeName: "Observable",
+                            genericArgs: [
+                                new ObjectType([
+                                    {
+                                        name: "event",
+                                        type: new ReferenceType({
+                                            genericArgs: [],
+                                            typeName: "Event",
+                                        }),
+                                    },
+                                ]),
+                            ],
+                        }),
+                    },
+                    {
+                        name: "userTest",
+                        type: new UserType({
+                            text: "Observable<Event>",
+                            imports: ["com.rx.Observable", "com.js.Event"],
+                        }),
+                    },
+                    {
+                        name: "stringUnionNullable",
+                        type: new UnionType([
+                            new StringLiteral("option1"),
+                            new StringLiteral("option2"),
+                            new PrimitiveType("VOID"),
+                        ]),
+                    },
+                    {
+                        name: "stringUnion",
+                        type: new UnionType([
+                            new StringLiteral("option1"),
+                            new StringLiteral("option2"),
+                        ]),
+                    },
+                    {
+                        name: "numberUnion",
+                        type: new UnionType([
+                            new NumberLiteral(1),
+                            new NumberLiteral(2),
+                        ]),
+                    },
+                    {
+                        name: "numberUnionNullable",
+                        type: new UnionType([
+                            new NumberLiteral(1),
+                            new NumberLiteral(2),
+                            new PrimitiveType("VOID"),
+                        ]),
+                    },
+                ],
+                sourcePath: "asd/asdss/aaa/test.ts",
+            })(config)
         ).toEqual(
             right([
                 {
@@ -189,8 +167,8 @@ import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
 import gwt.react.client.proptypes.BaseProps;
 import com.test.pk.int;
-import com.js.JsArray;
 import com.test.pkj.bool;
+import com.js.JsArray;
 import com.js.JsFunc;
 import com.rx.Observable;
 import com.js.Event;

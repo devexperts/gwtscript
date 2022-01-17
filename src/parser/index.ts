@@ -5,9 +5,16 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { Either, chainW, map } from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/pipeable";
 import * as ts from "typescript";
+import {
+    ask,
+    chain,
+    chainW,
+    fromEither,
+    ReaderEither,
+    map,
+} from "fp-ts/lib/ReaderEither";
 
 import { ParsingError } from "@root/utils/parseInJavaString";
 
@@ -23,25 +30,23 @@ import {
 import { ParserConfig } from "./parser.model";
 import { ParseTypeNodeError } from "./parseTypeNode";
 
-export const parse = (
-    config: ParserConfig
-): Either<
+export const parse = (): ReaderEither<
+    ParserConfig,
     | MapSimplifiedInterfacesError<FailedToParseInterface<ParseTypeNodeError>>
     | ParsingError
     | CannotFindConfigError,
     ParserOutput
 > => {
     return pipe(
-        createProgram(config.tsconfigAbsolutePath),
+        ask<ParserConfig>(),
+        chain((config) =>
+            fromEither(createProgram(config.tsconfigAbsolutePath))
+        ),
         chainW((program: ts.Program) =>
             pipe(
-                getNodesToTranspile(program, config),
+                getNodesToTranspile(program),
                 chainW((nodes) =>
-                    mapSimplifiedInterfaces(
-                        nodes,
-                        program.getTypeChecker(),
-                        config
-                    )
+                    mapSimplifiedInterfaces(nodes, program.getTypeChecker())
                 )
             )
         ),

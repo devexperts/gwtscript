@@ -23,6 +23,8 @@ import {
 import { MapSimplifiedInterfacesError } from "./parser/parser.errors";
 import { chalk } from "./utils/chalk";
 import { printParseTypeNodeError } from "./utils/printParseTypeNodeError";
+import { CannotGenerateTypesError } from "./generator/generator.errors";
+import { printTypeToStringError } from "./utils/printTypeToStringError";
 
 export type CompilerConfig = Omit<
     ParserConfig,
@@ -39,56 +41,77 @@ export type CompilerConfig = Omit<
     };
 
 export const compile = (config: CompilerConfig): void => {
+    const parserConfig = {
+        interfacePredicate:
+            typeof config.interfacePredicate === "function"
+                ? config.interfacePredicate
+                : defaultInterfacePredicate(config.interfacePredicate),
+        tsconfigAbsolutePath: config.tsconfigAbsolutePath,
+        filePredicate: config.filePredicate,
+        ignoreField:
+            typeof config.ignoreField === "function"
+                ? config.ignoreField
+                : defaultFieldPredicate(config.ignoreField ?? /@ToJavaIgnore/),
+        nativeReferences: config.nativeReferencesMap
+            ? Object.keys(config.nativeReferencesMap)
+            : [],
+        inJavaRegExpTest: config.inJavaRegExpTest ?? /@InJava/,
+        logs: config.logs,
+    };
+
+    const generatorConfig = {
+        destinationFolder: config.destinationFolder,
+        generateArrayType: config.generateArrayType,
+        generateFunctionType: config.generateFunctionType,
+        rootPackage: config.rootPackage,
+        getGroupName: config.getGroupName,
+        primitiveMapping: config.primitiveMapping,
+        nativeReferencesMap: config.nativeReferencesMap ?? {},
+    };
+
     pipe(
-        parse({
-            interfacePredicate:
-                typeof config.interfacePredicate === "function"
-                    ? config.interfacePredicate
-                    : defaultInterfacePredicate(config.interfacePredicate),
-            tsconfigAbsolutePath: config.tsconfigAbsolutePath,
-            filePredicate: config.filePredicate,
-            ignoreField:
-                typeof config.ignoreField === "function"
-                    ? config.ignoreField
-                    : defaultFieldPredicate(
-                          config.ignoreField ?? /@ToJavaIgnore/
-                      ),
-            nativeReferences: config.nativeReferencesMap
-                ? Object.keys(config.nativeReferencesMap)
-                : [],
-            inJavaRegExpTest: config.inJavaRegExpTest ?? /@InJava/,
-            logs: config.logs,
-        }),
-        chainW(
-            generate({
-                destinationFolder: config.destinationFolder,
-                generateArrayType: config.generateArrayType,
-                generateFunctionType: config.generateFunctionType,
-                rootPackage: config.rootPackage,
-                getGroupName: config.getGroupName,
-                primitiveMapping: config.primitiveMapping,
-                nativeReferencesMap: config.nativeReferencesMap ?? {},
-            })
-        ),
+        parse()(parserConfig),
+        chainW((value) => generate(value)(generatorConfig)),
         fold(
             (e) => {
-                if (!(e instanceof MapSimplifiedInterfacesError))
-                    return console.error(e);
-                console.log(chalk.bgRed.black(e.message));
-                for (const error of e.errors) {
-                    console.group();
-                    console.log(chalk.bold.red(error.message));
-
-                    console.group();
-                    for (const fieldError of error.errors) {
-                        console.log(chalk.bold.red(fieldError.fieldName + ":"));
+                if (e instanceof MapSimplifiedInterfacesError) {
+                    console.log(chalk.bgRed.black(e.message));
+                    for (const error of e.errors) {
                         console.group();
-                        printParseTypeNodeError(fieldError.error);
+                        console.log(chalk.bold.red(error.message));
+
+                        console.group();
+                        for (const fieldError of error.errors) {
+                            console.log(
+                                chalk.bold.red(fieldError.fieldName + ":")
+                            );
+                            console.group();
+                            printParseTypeNodeError(fieldError.error);
+                            console.groupEnd();
+                        }
+                        console.groupEnd();
+                        console.groupEnd();
+                    }
+                    return;
+                }
+                if (e instanceof CannotGenerateTypesError) {
+                    console.log(chalk.bold.red(e.message));
+                    console.group();
+                    for (const error of e.errors) {
+                        console.log(chalk.bold.red(error.message));
+                        console.group();
+                        for (const fieldError of error.fieldErrors) {
+                            console.log(chalk.red.bold(fieldError.message));
+                            console.group();
+                            printTypeToStringError(fieldError.error);
+                            console.groupEnd();
+                        }
                         console.groupEnd();
                     }
                     console.groupEnd();
-                    console.groupEnd();
+                    return;
                 }
+                return console.error(e);
             },
             (res: GeneratorResult[]) => {
                 res.forEach((file) => {

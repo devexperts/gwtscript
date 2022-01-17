@@ -7,7 +7,8 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as ts from "typescript";
 import { pipe } from "fp-ts/lib/function";
-import { Either, right, map, mapLeft } from "fp-ts/lib/Either";
+import { right, map, mapLeft } from "fp-ts/lib/Either";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
 import { sequenceEither } from "@root/utils/sequenceEither";
 
@@ -23,12 +24,12 @@ import {
 
 export const mapSimplifiedInterfaces = (
     interfaces: SimplifiedInterface[],
-    checker: ts.TypeChecker,
-    config: ParserConfig
-): Either<
+    checker: ts.TypeChecker
+): ReaderEither<
+    ParserConfig,
     MapSimplifiedInterfacesError<FailedToParseInterface<ParseTypeNodeError>>,
     readonly TypeToGenerate[]
-> => {
+> => (config) => {
     return pipe(
         sequenceEither(
             interfaces.map((entity) => {

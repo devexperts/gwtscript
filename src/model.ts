@@ -64,7 +64,10 @@ export class PrimitiveType extends Type<"primitive", keyof PrimitiveTypes> {
 export class FunctionType extends Type<"function", ParsedType> {
     identifier: "function" = "function";
 
-    constructor(type: ParsedType, public parameters: readonly ParsedType[]) {
+    constructor(
+        type: ParsedType,
+        public parameters: ReadonlyArray<{ name: string; type: ParsedType }>
+    ) {
         super(type);
     }
 }

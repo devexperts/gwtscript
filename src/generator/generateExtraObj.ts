@@ -7,11 +7,13 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { Either, map } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
+
 import { ObjectType } from "../model";
 import { generateExtraType } from "./generateExtraType";
 import { GeneratorConfig } from "./generator.config";
-import { FieldsGeneratingError } from "./generator.errors";
+import { CannotGenerateInterfaceError } from "./generator.errors";
 import { ExtraObject } from "./model";
+import { TypeToStringError } from "./typeToString";
 
 export const generateExtraObj = (
     name: string,
@@ -20,7 +22,7 @@ export const generateExtraObj = (
     obj: ObjectType,
     config: GeneratorConfig,
     generateRef: (name: string, type: ObjectType) => { name: string }
-): Either<FieldsGeneratingError, ExtraObject> => {
+): Either<CannotGenerateInterfaceError<TypeToStringError>, ExtraObject> => {
     return pipe(
         generateExtraType(name, pack, obj, config, generateRef),
         map((content) => ({

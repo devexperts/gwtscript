@@ -5,26 +5,35 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { bimap, Either } from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/pipeable";
 import { flatten } from "fp-ts/lib/Array";
+import { ask, bimap, chain, ReaderEither } from "fp-ts/lib/ReaderEither";
+
+import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
 
 import { ParserOutput } from "../model";
 import { generateType } from "./generateType";
 import { GeneratorConfig } from "./generator.config";
-import { FailedToGenerateFieldsOnTypes } from "./generator.errors";
+import { CannotGenerateTypesError } from "./generator.errors";
 import { GeneratorResult } from "./model";
-import { sequenceEither } from "../utils/sequenceEither";
+import { TypeToStringError } from "./typeToString";
 
-export const generate = (config: GeneratorConfig) => (
+export const generate = (
     parserOutput: ParserOutput
-): Either<FailedToGenerateFieldsOnTypes, GeneratorResult[]> => {
+): ReaderEither<
+    GeneratorConfig,
+    CannotGenerateTypesError<TypeToStringError>,
+    GeneratorResult[]
+> => {
     return pipe(
-        sequenceEither(
-            parserOutput.typesToGenerate.map((t) => generateType(t, config))
+        ask<GeneratorConfig>(),
+        chain(() =>
+            sequenceReaderEither(
+                parserOutput.typesToGenerate.map((t) => generateType(t))
+            )
         ),
         bimap(
-            (errors) => new FailedToGenerateFieldsOnTypes(errors),
+            (errors) => new CannotGenerateTypesError(errors),
             (value) => flatten(value)
         )
     );

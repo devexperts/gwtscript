@@ -1,4 +1,5 @@
 import { left, right } from "fp-ts/lib/Either";
+
 import {
     ObjectType,
     ParsedType,
@@ -6,6 +7,11 @@ import {
     ReferenceType,
     UnionType,
 } from "../../model";
+import {
+    CannotGenerateEmptyUnionTypeError,
+    CannotGenerateUnionError,
+    CannotStringifyVoidError,
+} from "../generator.errors";
 import { typeToString } from "../typeToString";
 
 describe("typeToString()", () => {
@@ -19,7 +25,12 @@ describe("typeToString()", () => {
             imports: [],
             result: "",
         }),
-        nativeReferencesMap: {},
+        nativeReferencesMap: {
+            Refa: {
+                text: "Refa1",
+                import: "com.a.s",
+            },
+        },
         rootPackage: "",
         primitiveMapping: {
             ANY: {
@@ -46,10 +57,10 @@ describe("typeToString()", () => {
     };
 
     const testFunc = (type: ParsedType) =>
-        typeToString(type, config, () => ({
+        typeToString(type, () => ({
             import: "",
             name: "",
-        }));
+        }))(config);
 
     it("works with primitives", () => {
         expect(testFunc(new PrimitiveType("NUMBER"))).toEqual(
@@ -69,9 +80,7 @@ describe("typeToString()", () => {
         );
 
         expect(testFunc(new PrimitiveType("VOID"))).toEqual(
-            left(
-                new Error("Cannot stringify VOID when it's not a function type")
-            )
+            left(new CannotStringifyVoidError())
         );
     });
 
@@ -82,20 +91,19 @@ describe("typeToString()", () => {
                     new PrimitiveType("VOID"),
                     new PrimitiveType("NUMBER"),
                 ]),
-                config,
                 () => ({
                     import: "",
                     name: "",
                 })
-            )
+            )(config)
         ).toEqual(right(config.primitiveMapping.NUMBER));
 
         expect(
-            typeToString(new UnionType([]), config, () => ({
+            typeToString(new UnionType([]), () => ({
                 import: "",
                 name: "",
-            }))
-        ).toEqual(left(new Error("Empty union type")));
+            }))(config)
+        ).toEqual(left(new CannotGenerateEmptyUnionTypeError()));
 
         expect(
             typeToString(
@@ -104,27 +112,12 @@ describe("typeToString()", () => {
                     new PrimitiveType("NUMBER"),
                     new PrimitiveType("STRING"),
                 ]),
-                config,
                 () => ({
                     import: "",
                     name: "",
                 })
-            )
-        ).toEqual(
-            left(
-                new Error(
-                    `Cannot stringify union, ${JSON.stringify(
-                        new UnionType([
-                            new PrimitiveType("VOID"),
-                            new PrimitiveType("NUMBER"),
-                            new PrimitiveType("STRING"),
-                        ]),
-                        undefined,
-                        2
-                    )}`
-                )
-            )
-        );
+            )(config)
+        ).toEqual(left(new CannotGenerateUnionError()));
 
         expect(
             typeToString(
@@ -132,39 +125,24 @@ describe("typeToString()", () => {
                     new PrimitiveType("NUMBER"),
                     new PrimitiveType("STRING"),
                 ]),
-                config,
                 () => ({
                     import: "",
                     name: "",
                 })
-            )
-        ).toEqual(
-            left(
-                new Error(
-                    `Cannot stringify union, ${JSON.stringify(
-                        new UnionType([
-                            new PrimitiveType("NUMBER"),
-                            new PrimitiveType("STRING"),
-                        ]),
-                        undefined,
-                        2
-                    )}`
-                )
-            )
-        );
+            )(config)
+        ).toEqual(left(new CannotGenerateUnionError()));
     });
 
     it("works with refs", () => {
         expect(
             typeToString(
                 new ReferenceType({
-                    typeName: "Refa",
+                    typeName: "Refa1",
                     genericArgs: [],
                 }),
-                config,
                 () => ({ import: "", name: "" })
-            )
-        ).toEqual(left(new Error('Unknown native reference to "Refa"')));
+            )(config)
+        ).toEqual(left(new Error('Unknown native reference to "Refa1"')));
 
         expect(
             typeToString(
@@ -172,17 +150,8 @@ describe("typeToString()", () => {
                     typeName: "Refa",
                     genericArgs: [new PrimitiveType("STRING")],
                 }),
-                {
-                    ...config,
-                    nativeReferencesMap: {
-                        Refa: {
-                            import: "com.a.s",
-                            text: "Refa1",
-                        },
-                    },
-                },
                 () => ({ import: "", name: "" })
-            )
+            )(config)
         ).toEqual(
             right({
                 result: "Refa1<str>",
@@ -198,12 +167,11 @@ describe("typeToString()", () => {
                     { name: "a", type: new PrimitiveType("NUMBER") },
                     { name: "b", type: new PrimitiveType("STRING") },
                 ]),
-                config,
                 () => ({
                     import: "com.test.import.obj_A",
                     name: "obj_A",
                 })
-            )
+            )(config)
         ).toEqual(
             right({
                 result: "obj_A",

@@ -5,22 +5,29 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { Either, flatten, map } from "fp-ts/lib/Either";
-import { pipe } from "fp-ts/lib/pipeable";
 import { resolve } from "path";
+
+import { flatten, map } from "fp-ts/lib/Either";
+import { pipe } from "fp-ts/lib/pipeable";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
+
 import { ObjectType, RefableType, TypeToGenerate } from "../model";
 import { unEither } from "../utils/unEither";
 import { generateContent } from "./generateContent";
 import { generateExtraObj } from "./generateExtraObj";
 import { generateUnionType } from "./generateUnionType";
 import { GeneratorConfig } from "./generator.config";
-import { FieldsGeneratingError } from "./generator.errors";
+import { CannotGenerateInterfaceError } from "./generator.errors";
 import { ExtraObject, GeneratorResult } from "./model";
+import { TypeToStringError } from "./typeToString";
 
 export const generateType = (
-    type: TypeToGenerate,
-    config: GeneratorConfig
-): Either<FieldsGeneratingError, GeneratorResult[]> => {
+    type: TypeToGenerate
+): ReaderEither<
+    GeneratorConfig,
+    CannotGenerateInterfaceError<TypeToStringError>,
+    GeneratorResult[]
+> => (config) => {
     return flatten(
         unEither(
             generateExtraObj,
@@ -84,7 +91,8 @@ export const generateType = (
                 };
 
                 return pipe(
-                    generateContent(type, packageName, config, handleRef),
+                    config,
+                    generateContent(type, packageName, handleRef),
                     map((content) =>
                         [
                             {

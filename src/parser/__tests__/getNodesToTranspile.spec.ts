@@ -1,5 +1,6 @@
-import { map, some } from "fp-ts/lib/Option";
+import { map, right } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
+
 import { getNodesToTranspile } from "../getNodesToTranspile";
 import { testConfig } from "./test.config";
 import { VirtualProgram } from "./TestHost/VirtualProgram";
@@ -32,9 +33,10 @@ describe("getNodesToTranspile()", () => {
     it("works", () => {
         expect(
             pipe(
-                getNodesToTranspile(host.program, testConfig),
+                testConfig,
+                getNodesToTranspile(host.program),
                 map((result) => result.map((i) => i.name))
             )
-        ).toEqual(some(["A", "B", "D"]));
+        ).toEqual(right(["A", "B", "D"]));
     });
 });

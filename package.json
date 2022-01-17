@@ -59,13 +59,14 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "lint-staged"
+      "pre-commit": "yarn add-copyrights && lint-staged"
     }
   },
   "lint-staged": {
     "*.ts": [
       "prettier --write",
-      "eslint --max-warnings=0"
+      "eslint --max-warnings=0",
+      "jest --bail --findRelatedTests"
     ]
   },
   "publishConfig": {
@@ -83,7 +84,11 @@
     "testPathIgnorePatterns": [
       "/node_modules/",
       "lib"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^@root(.*)$": "<rootDir>/src/$1",
+      "^@chalk$": "<rootDir>/src/utils/chalk"
+    }
   },
   "author": {
     "email": "enikiforov@devexperts.com",

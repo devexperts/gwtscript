@@ -1,4 +1,5 @@
 import { right } from "fp-ts/lib/Either";
+
 import { PrimitiveType } from "../../model";
 import { generateContent } from "../generateContent";
 import { GeneratorConfig } from "../generator.config";
@@ -52,12 +53,11 @@ describe("generateContent()", () => {
                     sourcePath: "/asd/asd/AA.java",
                 },
                 "a.a",
-                config,
                 (name) => ({
                     import: "aa.aa." + name,
                     name: `AA_${name}`,
                 })
-            )
+            )(config)
         ).toEqual(
             right(`package a.a;
 

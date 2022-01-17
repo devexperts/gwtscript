@@ -22,4 +22,5 @@ export interface ParserConfig {
     nativeReferences: string[];
     inJavaRegExpTest: RegExp;
     logs?: boolean;
+    disableTypesInErrors?: boolean;
 }

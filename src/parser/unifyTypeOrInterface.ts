@@ -6,7 +6,8 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { Either, isRight, left, right } from "fp-ts/lib/Either";
+import { isRight, left, right } from "fp-ts/lib/Either";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
 import { ParserConfig } from "./parser.model";
 import { UserType } from "../model";
@@ -26,15 +27,21 @@ export interface SimplifiedInterface {
 export const unifyTypeOrInterface = (
     node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
     type: ts.Type,
-    config: ParserConfig,
     filePath: string,
     checker: ts.TypeChecker
-): Either<EmptyShapeException | ParsingError, SimplifiedInterface> => {
+): ReaderEither<
+    ParserConfig,
+    EmptyShapeException | ParsingError,
+    SimplifiedInterface
+> => (config) => {
     const fields: SimplifiedInterface["fields"] = [];
 
     const props = type.getProperties();
 
-    if (props.length === 0) return left(new EmptyShapeException(node.name.escapedText.toString(), filePath));
+    if (props.length === 0)
+        return left(
+            new EmptyShapeException(node.name.escapedText.toString(), filePath)
+        );
 
     for (const symbol of props) {
         let userInput: undefined | UserType = undefined;

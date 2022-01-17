@@ -1,15 +1,13 @@
+import { pipe } from "fp-ts/lib/pipeable";
+
+import { chainW, map } from "fp-ts/lib/ReaderEither";
+import { right } from "fp-ts/lib/Either";
+
 import { mapSimplifiedInterfaces } from "../mapSimplifiedInterfaces";
 import { ifc, TAKE, TestHost } from "./TestHost";
 import { unifyTypeOrInterface } from "../unifyTypeOrInterface";
-import { pipe } from "fp-ts/lib/pipeable";
 import { testConfig } from "./test.config";
-import { chain, map, Option, some } from "fp-ts/lib/Option";
-import {
-    FunctionType,
-    ObjectType,
-    PrimitiveType,
-    TypeToGenerate,
-} from "../../model";
+import { FunctionType, ObjectType, PrimitiveType } from "../../model";
 describe("mapSimplifiedInterfaces()", () => {
     const host = new TestHost({
         declarations: {
@@ -34,17 +32,14 @@ describe("mapSimplifiedInterfaces()", () => {
                 unifyTypeOrInterface(
                     host.getNode("interf"),
                     host.checker.getTypeAtLocation(host.getNode("interf")),
-                    testConfig,
                     "",
                     host.checker
                 ),
-                chain((item) =>
-                    mapSimplifiedInterfaces([item], host.checker, testConfig)
-                ),
+                chainW((item) => mapSimplifiedInterfaces([item], host.checker)),
                 map((items) => items[0])
-            )
-        ).toEqual<Option<TypeToGenerate>>(
-            some({
+            )(testConfig)
+        ).toEqual(
+            right({
                 name: "A",
                 sourcePath: "",
                 fields: [
@@ -59,7 +54,7 @@ describe("mapSimplifiedInterfaces()", () => {
                                     type: new PrimitiveType("NUMBER"),
                                 },
                             ]),
-                            [new PrimitiveType("NUMBER")]
+                            [{ name: "a", type: new PrimitiveType("NUMBER") }]
                         ),
                     },
                 ],

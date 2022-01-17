@@ -6,7 +6,8 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { Either, isRight, left, right } from "fp-ts/lib/Either";
+import { isRight, left, right } from "fp-ts/lib/Either";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
 import { chalk } from "@chalk";
 import { ParsingError } from "@root/utils/parseInJavaString";
@@ -19,9 +20,10 @@ import {
 import { EmptyShapeException } from "./parser.errors";
 
 export const getNodesToTranspile = (
-    program: ts.Program,
-    config: ParserConfig
-): Either<ParsingError, SimplifiedInterface[]> => {
+    program: ts.Program
+): ReaderEither<ParserConfig, ParsingError, SimplifiedInterface[]> => (
+    config
+) => {
     const fileNames = program.getRootFileNames();
 
     const results: SimplifiedInterface[] = [];
@@ -42,16 +44,19 @@ export const getNodesToTranspile = (
 
                 // check that type is a shape declaration
                 if (!checked.symbol?.declarations?.length) {
-                    console.warn(chalk.bgYellow.black(`Type ${node.name.escapedText} (location: "${name}") was ignored because its's not an object type`))
+                    console.warn(
+                        chalk.bgYellow.black(
+                            `Type ${node.name.escapedText} (location: "${name}") was ignored because it's not an object type`
+                        )
+                    );
                     continue;
                 }
                 const simplified = unifyTypeOrInterface(
                     node,
                     checked,
-                    config,
                     name,
                     checker
-                );
+                )(config);
 
                 if (isRight(simplified)) {
                     results.push(simplified.right);
@@ -60,12 +65,12 @@ export const getNodesToTranspile = (
 
                 const error = simplified.left;
 
-                if(error instanceof EmptyShapeException) {
-                    console.warn(chalk.bgYellow.black(error.message))
+                if (error instanceof EmptyShapeException) {
+                    console.warn(chalk.bgYellow.black(error.message));
                     continue;
                 }
-                
-                return left(error)
+
+                return left(error);
             }
         }
     }

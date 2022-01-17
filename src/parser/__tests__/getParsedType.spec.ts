@@ -1,6 +1,8 @@
-import { none, some } from "fp-ts/lib/Option";
+import { left, right } from "fp-ts/lib/Either";
+
 import { NumberLiteral, PrimitiveType, UnionType } from "../../model";
 import { getParsedType } from "../getParsedType";
+import { CannotParseTypeError } from "../parser.errors";
 import { td, TestHost } from "./TestHost";
 
 describe("getParsedType()", () => {
@@ -19,27 +21,41 @@ describe("getParsedType()", () => {
     });
 
     describe.each([
-        [host.getNode("null"), some(new PrimitiveType("VOID"))],
-        [host.getNode("number"), some(new PrimitiveType("NUMBER"))],
-        [host.getNode("string"), some(new PrimitiveType("STRING"))],
-        [host.getNode("undef"), some(new PrimitiveType("VOID"))],
-        [host.getNode("void"), some(new PrimitiveType("VOID"))],
-        [host.getNode("bool"), some(new PrimitiveType("BOOLEAN"))],
+        [host.getNode("null"), right(new PrimitiveType("VOID"))],
+        [host.getNode("number"), right(new PrimitiveType("NUMBER"))],
+        [host.getNode("string"), right(new PrimitiveType("STRING"))],
+        [host.getNode("undef"), right(new PrimitiveType("VOID"))],
+        [host.getNode("void"), right(new PrimitiveType("VOID"))],
+        [host.getNode("bool"), right(new PrimitiveType("BOOLEAN"))],
         [
             host.getNode("boolOrNumber"),
-            some(
+            right(
                 new UnionType([
                     new PrimitiveType("NUMBER"),
                     new PrimitiveType("BOOLEAN"),
                 ])
             ),
         ],
-        [host.getNode("obj"), none],
-        [host.getNode("numLiteral"), some(new NumberLiteral(2))],
+        [
+            host.getNode("obj"),
+            left(
+                new CannotParseTypeError(
+                    "",
+                    "",
+                    "",
+                    host.checker.getTypeAtLocation(host.getNode("obj"))
+                )
+            ),
+        ],
+        [host.getNode("numLiteral"), right(new NumberLiteral(2))],
     ])("table test", (node, result) => {
         it("works with primitives", () => {
             expect(
-                getParsedType(host.checker.getTypeAtLocation(node.type))
+                getParsedType(host.checker.getTypeAtLocation(node.type))({
+                    fieldName: "",
+                    location: "",
+                    typeName: "",
+                })
             ).toEqual(result);
         });
     });

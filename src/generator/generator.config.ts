@@ -5,22 +5,14 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import {
-    ArrayType,
-    FunctionType,
-    ParsedType,
-    PrimitiveTypes,
-    TypeToGenerate,
-} from "../model";
+import { PrimitiveTypes, TypeToGenerate } from "../model";
 
 export interface GeneratorConfig {
     destinationFolder: string;
     rootPackage: string;
     generateFunctionType: (
-        type: FunctionType,
-        stringifyParsedType: (
-            type: ParsedType
-        ) => { result: string; imports: string[] }
+        parameters: Array<{ name: string; type: string }>,
+        returnType: string
     ) => {
         result: string;
         imports: string[];
@@ -33,10 +25,7 @@ export interface GeneratorConfig {
     };
     getGroupName?: (type: TypeToGenerate) => string;
     generateArrayType: (
-        type: ArrayType,
-        stringifyParsedType: (
-            type: ParsedType
-        ) => { result: string; imports: string[] }
+        type: string
     ) => {
         result: string;
         imports: string[];
