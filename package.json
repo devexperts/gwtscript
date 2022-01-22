@@ -1,6 +1,6 @@
 {
   "name": "@dx-private/java-translate",
-  "version": "2.0.1",
+  "version": "2.0.1-alpha",
   "main": "lib/index.js",
   "license": "MPL-2.0",
   "dependencies": {
