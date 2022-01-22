@@ -8,10 +8,15 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import * as ts from "typescript";
 import { Either, left, right } from "fp-ts/lib/Either";
 
-import { CannotFindConfigError, TSCompilerError } from "../parser/parser.errors";
+import {
+    CannotFindConfigError,
+    TSCompilerError,
+} from "../parser/parser.errors";
 import { getDirFromPath } from "./getDirFromPath";
 
-export function createProgram(tsConfigPath: string): Either<CannotFindConfigError, ts.Program> {
+export function createProgram(
+    tsConfigPath: string
+): Either<CannotFindConfigError, ts.Program> {
     const configPath = ts.findConfigFile(tsConfigPath, ts.sys.fileExists);
 
     if (!configPath) return left(new CannotFindConfigError(tsConfigPath));
@@ -24,13 +29,18 @@ export function createProgram(tsConfigPath: string): Either<CannotFindConfigErro
         getDirFromPath(config.fileName)
     );
     const program = ts.createProgram(fileNames, options);
-
+    console.log(options);
     const compilerHost = ts.createCompilerHost(options);
 
     const errors = ts.getPreEmitDiagnostics(program);
 
     if (errors.length > 0) {
-        return left(new TSCompilerError(ts.formatDiagnosticsWithColorAndContext(errors, compilerHost), errors));
+        return left(
+            new TSCompilerError(
+                ts.formatDiagnosticsWithColorAndContext(errors, compilerHost),
+                errors
+            )
+        );
     }
 
     return right(program);

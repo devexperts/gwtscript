@@ -5,7 +5,7 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import "module-alias/register";
+import "./aliases";
 import { outputFile } from "fs-extra";
 import { chainW, fold } from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
