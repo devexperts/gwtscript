@@ -6,7 +6,6 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import { pipe } from "fp-ts/lib/pipeable";
-import { flatten } from "fp-ts/lib/Array";
 import { ask, bimap, chain, ReaderEither } from "fp-ts/lib/ReaderEither";
 
 import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
@@ -34,7 +33,7 @@ export const generate = (
         ),
         bimap(
             (errors) => new CannotGenerateTypesError(errors),
-            (value) => flatten(value)
+            (value) => value
         )
     );
 };

@@ -157,11 +157,10 @@ describe("generateType()", () => {
                 sourcePath: "asd/asdss/aaa/test.ts",
             })(config)
         ).toEqual(
-            right([
-                {
-                    name: "Test",
-                    path: "/dist/test/Test.java",
-                    content: `package com.devexperts.test;
+            right({
+                name: "Test",
+                path: "/dist/test/Test.java",
+                content: `package com.devexperts.test;
 
 import jsinterop.annotations.JsPackage;
 import jsinterop.annotations.JsType;
@@ -173,7 +172,7 @@ import com.js.JsFunc;
 import com.rx.Observable;
 import com.js.Event;
 
-
+// Source: type Test from asd/asdss/aaa/test.ts
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class Test extends BaseProps {
     public Test_objField objField;
@@ -188,11 +187,13 @@ public class Test extends BaseProps {
     public Test_numberUnionNullable numberUnionNullable;
 }
 `,
-                },
-                {
-                    name: "Test_objField",
-                    path: "/dist/test/Test_objField.java",
-                    content: `package com.devexperts.test;
+                sourceName: "Test",
+                sourcePath: "asd/asdss/aaa/test.ts",
+                children: [
+                    {
+                        name: "Test_objField",
+                        path: "/dist/test/Test_objField.java",
+                        content: `package com.devexperts.test;
 
 import com.test.pk.int;
 import com.test.pk.str;
@@ -203,11 +204,21 @@ public class Test_objField {
     public str b;
 }
 `,
-                },
-                {
-                    name: "Test_refable",
-                    path: "/dist/test/Test_refable.java",
-                    content: `package com.devexperts.test;
+                        type: new ObjectType([
+                            {
+                                name: "a",
+                                type: new PrimitiveType("NUMBER"),
+                            },
+                            {
+                                name: "b",
+                                type: new PrimitiveType("STRING"),
+                            },
+                        ]),
+                    },
+                    {
+                        name: "Test_refable",
+                        path: "/dist/test/Test_refable.java",
+                        content: `package com.devexperts.test;
 
 import com.js.Event;
 
@@ -216,11 +227,20 @@ public class Test_refable {
     public Event event;
 }
 `,
-                },
-                {
-                    name: "Test_stringUnionNullable",
-                    path: "/dist/test/Test_stringUnionNullable.java",
-                    content: `package com.devexperts.test;
+                        type: new ObjectType([
+                            {
+                                name: "event",
+                                type: new ReferenceType({
+                                    genericArgs: [],
+                                    typeName: "Event",
+                                }),
+                            },
+                        ]),
+                    },
+                    {
+                        name: "Test_stringUnionNullable",
+                        path: "/dist/test/Test_stringUnionNullable.java",
+                        content: `package com.devexperts.test;
 
 import static com.devexperts.client.reusable.core.JsNativesUtils.jsEnum;
 import com.devexperts.client.reusable.core.JsEnum;
@@ -230,11 +250,15 @@ public interface Test_stringUnionNullable extends JsEnum {
     Test_stringUnionNullable OPTION2 = jsEnum("option2", Test_stringUnionNullable.class);
 }
 `,
-                },
-                {
-                    name: "Test_stringUnion",
-                    path: "/dist/test/Test_stringUnion.java",
-                    content: `package com.devexperts.test;
+                        type: new UnionType([
+                            new StringLiteral("option1"),
+                            new StringLiteral("option2"),
+                        ]),
+                    },
+                    {
+                        name: "Test_stringUnion",
+                        path: "/dist/test/Test_stringUnion.java",
+                        content: `package com.devexperts.test;
 
 import static com.devexperts.client.reusable.core.JsNativesUtils.jsEnum;
 import com.devexperts.client.reusable.core.JsEnum;
@@ -244,11 +268,15 @@ public interface Test_stringUnion extends JsEnum {
     Test_stringUnion OPTION2 = jsEnum("option2", Test_stringUnion.class);
 }
 `,
-                },
-                {
-                    name: "Test_numberUnion",
-                    path: "/dist/test/Test_numberUnion.java",
-                    content: `package com.devexperts.test;
+                        type: new UnionType([
+                            new StringLiteral("option1"),
+                            new StringLiteral("option2"),
+                        ]),
+                    },
+                    {
+                        name: "Test_numberUnion",
+                        path: "/dist/test/Test_numberUnion.java",
+                        content: `package com.devexperts.test;
 
 import static com.devexperts.client.reusable.core.JsNativesUtils.jsEnum;
 import com.devexperts.client.reusable.core.JsEnum;
@@ -258,11 +286,15 @@ public interface Test_numberUnion extends JsEnum {
     Test_numberUnion TEST_NUMBERUNION_2 = jsEnum(2, Test_numberUnion.class);
 }
 `,
-                },
-                {
-                    name: "Test_numberUnionNullable",
-                    path: "/dist/test/Test_numberUnionNullable.java",
-                    content: `package com.devexperts.test;
+                        type: new UnionType([
+                            new NumberLiteral(1),
+                            new NumberLiteral(2),
+                        ]),
+                    },
+                    {
+                        name: "Test_numberUnionNullable",
+                        path: "/dist/test/Test_numberUnionNullable.java",
+                        content: `package com.devexperts.test;
 
 import static com.devexperts.client.reusable.core.JsNativesUtils.jsEnum;
 import com.devexperts.client.reusable.core.JsEnum;
@@ -272,8 +304,13 @@ public interface Test_numberUnionNullable extends JsEnum {
     Test_numberUnionNullable TEST_NUMBERUNIONNULLABLE_2 = jsEnum(2, Test_numberUnionNullable.class);
 }
 `,
-                },
-            ])
+                        type: new UnionType([
+                            new NumberLiteral(1),
+                            new NumberLiteral(2),
+                        ]),
+                    },
+                ],
+            })
         );
     });
 });

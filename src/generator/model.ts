@@ -17,8 +17,11 @@ export interface TransformParsedTypeToString {
 
 export interface GeneratorResult {
     name: string;
+    sourceName: string;
     path: string;
+    sourcePath: string;
     content: string;
+    children: ExtraObject[];
 }
 
 export type ExtraObject = {

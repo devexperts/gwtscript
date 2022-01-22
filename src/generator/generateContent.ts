@@ -67,7 +67,7 @@ export const generateContent = (
 ${imports.map((i) => `import ${i};`).join(`
 `)}
 
-
+// Source: type ${type.name} from ${type.sourcePath}
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class ${type.name} extends BaseProps {
     ${fields.map((field) => {

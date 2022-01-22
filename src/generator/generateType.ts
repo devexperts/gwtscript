@@ -26,7 +26,7 @@ export const generateType = (
 ): ReaderEither<
     GeneratorConfig,
     CannotGenerateInterfaceError<TypeToStringError>,
-    GeneratorResult[]
+    GeneratorResult
 > => (config) => {
     return flatten(
         unEither(
@@ -93,21 +93,14 @@ export const generateType = (
                 return pipe(
                     config,
                     generateContent(type, packageName, handleRef),
-                    map((content) =>
-                        [
-                            {
-                                content,
-                                name: type.name,
-                                path: resolve(folderPath, `${type.name}.java`),
-                            },
-                        ].concat(
-                            Array.from(extraTypes.values()).map((item) => ({
-                                name: item.name,
-                                content: item.content,
-                                path: item.path,
-                            }))
-                        )
-                    )
+                    map((content) => ({
+                        content,
+                        name: type.name,
+                        path: resolve(folderPath, `${type.name}.java`),
+                        children: Array.from(extraTypes.values()),
+                        sourceName: type.name,
+                        sourcePath: type.sourcePath,
+                    }))
                 );
             }
         )

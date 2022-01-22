@@ -67,7 +67,7 @@ import gwt.react.client.proptypes.BaseProps;
 import com.test.pk.int;
 import com.test.pk.str;
 
-
+// Source: type AA from /asd/asd/AA.java
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class AA extends BaseProps {
     public int a;

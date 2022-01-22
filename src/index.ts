@@ -115,7 +115,30 @@ export const compile = (config: CompilerConfig): void => {
             },
             (res: GeneratorResult[]) => {
                 res.forEach((file) => {
+                    console.log(
+                        chalk.green.bold(`Generating type ${file.name}`)
+                    );
+                    console.log(
+                        chalk.green(`From: ${chalk.italic(file.sourcePath)}`)
+                    );
+                    console.log(chalk.green(`To: ${chalk.italic(file.path)}`));
                     outputFile(file.path, file.content);
+                    if (file.children.length > 0) {
+                        console.log(chalk.green(`Generating nested types:`));
+                        console.group();
+                        for (const child of file.children) {
+                            console.log(
+                                chalk.green(
+                                    `Type ${child.name} to ${chalk.italic(
+                                        child.path
+                                    )}`
+                                )
+                            );
+                            outputFile(child.path, child.content);
+                        }
+                        console.groupEnd();
+                    }
+                    console.log();
                 });
             }
         )
