@@ -29,7 +29,7 @@ export function createProgram(
         getDirFromPath(config.fileName)
     );
     const program = ts.createProgram(fileNames, options);
-    console.log(options);
+
     const compilerHost = ts.createCompilerHost(options);
 
     const errors = ts.getPreEmitDiagnostics(program);

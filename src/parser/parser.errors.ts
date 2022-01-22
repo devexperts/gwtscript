@@ -260,3 +260,17 @@ export class MapSimplifiedInterfacesError<ErrorType = Error> extends Error {
         Object.setPrototypeOf(this, MapSimplifiedInterfacesError.prototype);
     }
 }
+
+export class UnexpectedDeclarationTypeError extends Error {
+    constructor(
+        public fieldName: string,
+        public typeName: string,
+        public path: string,
+        public declarationType: string
+    ) {
+        super(
+            `Field "${fieldName}" has unexpected declaration type "${declarationType}"`
+        );
+        Object.setPrototypeOf(this, UnexpectedDeclarationTypeError.prototype);
+    }
+}
