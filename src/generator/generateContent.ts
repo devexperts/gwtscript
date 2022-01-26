@@ -5,31 +5,41 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { Either, map, mapLeft } from "fp-ts/lib/Either";
+import { map, mapLeft } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
+
 import { RefableType, TypeToGenerate } from "../model";
 import { sequenceEither } from "../utils/sequenceEither";
 import { GeneratorConfig } from "./generator.config";
-import { FieldsGeneratingError } from "./generator.errors";
-import { typeToString } from "./typeToString";
+import {
+    CannotGenerateInterfaceError,
+    CannotGenerateFieldError,
+} from "./generator.errors";
+import { typeToString, TypeToStringError } from "./typeToString";
 
 export const generateContent = (
     type: TypeToGenerate,
     pack: string,
-    config: GeneratorConfig,
     generateRef: (name: string, type: RefableType) => { name: string }
-): Either<FieldsGeneratingError, string> => {
+): ReaderEither<
+    GeneratorConfig,
+    CannotGenerateInterfaceError<TypeToStringError>,
+    string
+> => (config) => {
     return pipe(
         sequenceEither(
             type.fields.map((val) => {
                 return pipe(
-                    typeToString(val.type, config, (f) =>
-                        generateRef(val.name, f)
-                    ),
+                    config,
+                    typeToString(val.type, (f) => generateRef(val.name, f)),
                     map((str) => ({
                         ...str,
                         name: val.name,
-                    }))
+                    })),
+                    mapLeft(
+                        (error) => new CannotGenerateFieldError(val.name, error)
+                    )
                 );
             })
         ),
@@ -57,7 +67,7 @@ export const generateContent = (
 ${imports.map((i) => `import ${i};`).join(`
 `)}
 
-
+// Source: type ${type.name} from ${type.sourcePath}
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class ${type.name} extends BaseProps {
     ${fields.map((field) => {
@@ -68,7 +78,7 @@ public class ${type.name} extends BaseProps {
 `;
         }),
         mapLeft((errors) => {
-            return new FieldsGeneratingError(type.name, errors);
+            return new CannotGenerateInterfaceError(type.name, errors);
         })
     );
 };

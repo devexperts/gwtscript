@@ -10,4 +10,5 @@ export const testConfig: ParserConfig = {
     nativeReferences: [],
     tsconfigAbsolutePath: "",
     ignoreField: defaultFieldPredicate(/@Ignore/),
+    disableTypesInErrors: true,
 };

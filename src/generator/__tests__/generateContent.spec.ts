@@ -1,4 +1,5 @@
 import { right } from "fp-ts/lib/Either";
+
 import { PrimitiveType } from "../../model";
 import { generateContent } from "../generateContent";
 import { GeneratorConfig } from "../generator.config";
@@ -52,12 +53,11 @@ describe("generateContent()", () => {
                     sourcePath: "/asd/asd/AA.java",
                 },
                 "a.a",
-                config,
                 (name) => ({
                     import: "aa.aa." + name,
                     name: `AA_${name}`,
                 })
-            )
+            )(config)
         ).toEqual(
             right(`package a.a;
 
@@ -67,7 +67,7 @@ import gwt.react.client.proptypes.BaseProps;
 import com.test.pk.int;
 import com.test.pk.str;
 
-
+// Source: type AA from /asd/asd/AA.java
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class AA extends BaseProps {
     public int a;

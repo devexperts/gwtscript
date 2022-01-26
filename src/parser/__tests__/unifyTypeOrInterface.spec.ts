@@ -1,6 +1,8 @@
-import { map, none, some } from "fp-ts/lib/Option";
+import { left, map, right } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
+
 import { UserType } from "../../model";
+import { EmptyShapeException } from "../parser.errors";
 import { unifyTypeOrInterface } from "../unifyTypeOrInterface";
 import { testConfig } from "./test.config";
 import { ifc, TAKE, td, TestHost } from "./TestHost";
@@ -64,41 +66,44 @@ describe("unifyTypeOrInterface()", () => {
     describe.each([
         [
             host.getNode("inf"),
-            some({
+            right({
                 name: "Inf",
                 fields: ["a", "c"],
             }),
         ],
         [
             host.getNode("typeDeclaration"),
-            some({
+            right({
                 name: "TD",
                 fields: ["b", "c"],
             }),
         ],
         [
             host.getNode("oddDeclaration"),
-            some({
+            right({
                 name: "Odd",
                 fields: ["a", "map"],
             }),
         ],
         [
             host.getNode("reversed"),
-            some({
+            right({
                 name: "Reve",
                 fields: ["a", "b"],
             }),
         ],
-        [host.getNode("errWithLiteral"), none],
+        [
+            host.getNode("errWithLiteral"),
+            left(new EmptyShapeException("A", "test/aa.ts")),
+        ],
     ])("table tests", (inter, result) => {
         it("works in common cases", () => {
             expect(
                 pipe(
+                    testConfig,
                     unifyTypeOrInterface(
                         inter,
                         host.checker.getTypeAtLocation(inter),
-                        testConfig,
                         "test/aa.ts",
                         host.checker
                     ),
@@ -114,10 +119,10 @@ describe("unifyTypeOrInterface()", () => {
     it("works with @InJava", () => {
         expect(
             pipe(
+                testConfig,
                 unifyTypeOrInterface(
                     host.getNode("inJavaTest"),
                     host.checker.getTypeAtLocation(host.getNode("inJavaTest")),
-                    testConfig,
                     "test/aa.ts",
                     host.checker
                 ),
@@ -130,7 +135,7 @@ describe("unifyTypeOrInterface()", () => {
                 }))
             )
         ).toEqual(
-            some({
+            right({
                 name: "InJava",
                 fields: [
                     {

@@ -6,29 +6,49 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { NumberLiteral, ParsedType, StringLiteral, UnionType } from "../model";
-
-import { PrimitiveType } from "../model";
-
-import { Option, some, none, sequenceArray, map } from "fp-ts/Option";
 import { pipe } from "fp-ts/lib/pipeable";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
+import { right, left, map as mapEither, mapLeft } from "fp-ts/lib/Either";
 
-export const getParsedType = (type: ts.Type): Option<ParsedType> => {
+import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+
+import {
+    NumberLiteral,
+    ParsedType,
+    StringLiteral,
+    UnionType,
+    PrimitiveType,
+} from "../model";
+import { CannotParseTypeError, FailedToParseUnionError } from "./parser.errors";
+
+export interface GetParsedTypeEnv {
+    fieldName: string;
+    typeName: string;
+    location: string;
+}
+
+export type GetParsedTypeError =
+    | CannotParseTypeError
+    | FailedToParseUnionError<GetParsedTypeError>;
+
+export const getParsedType = (
+    type: ts.Type
+): ReaderEither<GetParsedTypeEnv, GetParsedTypeError, ParsedType> => (env) => {
     switch (type.flags) {
         case ts.TypeFlags.Number:
-            return some(new PrimitiveType("NUMBER"));
+            return right(new PrimitiveType("NUMBER"));
         case ts.TypeFlags.String:
-            return some(new PrimitiveType("STRING"));
+            return right(new PrimitiveType("STRING"));
         case ts.TypeFlags.BooleanLiteral:
-            return some(new PrimitiveType("BOOLEAN"));
+            return right(new PrimitiveType("BOOLEAN"));
         case ts.TypeFlags.Null:
         case ts.TypeFlags.Undefined:
         case ts.TypeFlags.Void:
-            return some(new PrimitiveType("VOID"));
+            return right(new PrimitiveType("VOID"));
     }
 
-    if (type.isStringLiteral()) return some(new StringLiteral(type.value));
-    if (type.isNumberLiteral()) return some(new NumberLiteral(type.value));
+    if (type.isStringLiteral()) return right(new StringLiteral(type.value));
+    if (type.isNumberLiteral()) return right(new NumberLiteral(type.value));
 
     if (type.isUnion()) {
         if (
@@ -36,16 +56,33 @@ export const getParsedType = (type: ts.Type): Option<ParsedType> => {
             type.types[0].flags === ts.TypeFlags.BooleanLiteral &&
             type.types[1].flags === ts.TypeFlags.BooleanLiteral
         )
-            return some(new PrimitiveType("BOOLEAN"));
+            return right(new PrimitiveType("BOOLEAN"));
 
         return pipe(
-            sequenceArray(type.types.map(getParsedType)),
-            map(booleanDedup),
-            map((types) => new UnionType(types))
+            env,
+            sequenceReaderEither(type.types.map(getParsedType)),
+            mapEither(booleanDedup),
+            mapEither((types) => new UnionType(types)),
+            mapLeft(
+                (errs) =>
+                    new FailedToParseUnionError(
+                        env.typeName,
+                        env.fieldName,
+                        env.location,
+                        errs
+                    )
+            )
         );
     }
 
-    return none;
+    return left(
+        new CannotParseTypeError(
+            env.typeName,
+            env.fieldName,
+            env.location,
+            type
+        )
+    );
 };
 
 const booleanDedup = (types: ParsedType[]): ParsedType[] => {

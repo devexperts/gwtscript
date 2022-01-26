@@ -5,13 +5,22 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
+import {
+    map as mapReader,
+    mapLeft as mapLeftReader,
+} from "fp-ts/lib/ReaderEither";
 import { Either, map, mapLeft } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
+
+import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+
 import { ObjectType, RefableType } from "../model";
-import { sequenceEither } from "../utils/sequenceEither";
 import { GeneratorConfig } from "./generator.config";
-import { FieldsGeneratingError } from "./generator.errors";
-import { typeToString } from "./typeToString";
+import {
+    CannotGenerateFieldError,
+    CannotGenerateInterfaceError,
+} from "./generator.errors";
+import { typeToString, TypeToStringError } from "./typeToString";
 
 export const generateExtraType = (
     name: string,
@@ -19,19 +28,21 @@ export const generateExtraType = (
     type: ObjectType,
     config: GeneratorConfig,
     generateRef: (name: string, type: RefableType) => { name: string }
-): Either<FieldsGeneratingError, string> => {
+): Either<CannotGenerateInterfaceError<TypeToStringError>, string> => {
     return pipe(
         pipe(
-            sequenceEither(
+            config,
+            sequenceReaderEither(
                 type.type.map((val) =>
                     pipe(
-                        typeToString(val.type, config, (f) =>
-                            generateRef(val.name, f)
-                        ),
-                        map((str) => ({
+                        typeToString(val.type, (f) => generateRef(val.name, f)),
+                        mapReader((str) => ({
                             ...str,
                             name: val.name,
-                        }))
+                        })),
+                        mapLeftReader(
+                            (err) => new CannotGenerateFieldError(val.name, err)
+                        )
                     )
                 )
             ),
@@ -65,6 +76,6 @@ public class ${name} {
 }
 `;
         }),
-        mapLeft((errors) => new FieldsGeneratingError(name, errors))
+        mapLeft((errors) => new CannotGenerateInterfaceError(name, errors))
     );
 };

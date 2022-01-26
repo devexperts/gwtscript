@@ -14,13 +14,27 @@
         "sourceType": "module"
     },
     "plugins": [
-        "@typescript-eslint"
+        "@typescript-eslint",
+        "import"
     ],
     "ignorePatterns": [
         "./dir/",
         "run.ts"
     ],
     "rules": {
-        "@typescript-eslint/no-explicit-any": "off"
+        "@typescript-eslint/no-explicit-any": "off",
+        "import/order": [
+            "warn",
+            {
+                "groups": ["builtin", "external", "internal", ["parent", "sibling"], "unknown"],
+                "pathGroups": [
+                    {
+                        "pattern": "@root/**",
+                        "group": "internal"
+                      }
+                ],
+                "newlines-between": "always-and-inside-groups"
+            }
+        ]
     }
 }

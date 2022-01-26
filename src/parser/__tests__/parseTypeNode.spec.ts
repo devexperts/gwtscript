@@ -1,4 +1,5 @@
-import { none, some } from "fp-ts/lib/Option";
+import { left, right } from "fp-ts/lib/Either";
+
 import {
     ArrayType,
     FunctionType,
@@ -9,6 +10,11 @@ import {
     StringLiteral,
     UnionType,
 } from "../../model";
+import {
+    CannotParseTypeError,
+    CannotParseTypeNodeError,
+    FailedToParseUnionError,
+} from "../parser.errors";
 import { parseTypeNode } from "../parseTypeNode";
 import { testConfig } from "./test.config";
 import { TAKE, td, TestHost } from "./TestHost";
@@ -45,28 +51,28 @@ describe("parseTypeNode()", () => {
     });
 
     describe.each([
-        [host.getNode("num"), some(new PrimitiveType("NUMBER"))],
-        [host.getNode("str"), some(new PrimitiveType("STRING"))],
-        [host.getNode("bool"), some(new PrimitiveType("BOOLEAN"))],
+        [host.getNode("num"), right(new PrimitiveType("NUMBER"))],
+        [host.getNode("str"), right(new PrimitiveType("STRING"))],
+        [host.getNode("bool"), right(new PrimitiveType("BOOLEAN"))],
         [
             host.getNode("func"),
-            some(
+            right(
                 new FunctionType(new PrimitiveType("STRING"), [
-                    new PrimitiveType("NUMBER"),
-                    new PrimitiveType("STRING"),
+                    { name: "c", type: new PrimitiveType("NUMBER") },
+                    { name: "b", type: new PrimitiveType("STRING") },
                 ])
             ),
         ],
         [
             host.getNode("obj"),
-            some(
+            right(
                 new ObjectType([
                     { name: "a", type: new PrimitiveType("NUMBER") },
                     { name: "b", type: new PrimitiveType("STRING") },
                     {
                         name: "c",
                         type: new FunctionType(new PrimitiveType("STRING"), [
-                            new PrimitiveType("NUMBER"),
+                            { name: "j", type: new PrimitiveType("NUMBER") },
                         ]),
                     },
                 ])
@@ -74,7 +80,7 @@ describe("parseTypeNode()", () => {
         ],
         [
             host.getNode("union"),
-            some(
+            right(
                 new UnionType([
                     new PrimitiveType("NUMBER"),
                     new PrimitiveType("STRING"),
@@ -83,7 +89,7 @@ describe("parseTypeNode()", () => {
         ],
         [
             host.getNode("ins"),
-            some(
+            right(
                 new ObjectType([
                     { name: "a", type: new PrimitiveType("NUMBER") },
                     { name: "c", type: new PrimitiveType("NUMBER") },
@@ -93,7 +99,7 @@ describe("parseTypeNode()", () => {
         ],
         [
             host.getNode("pick"),
-            some(
+            right(
                 new ObjectType([
                     { name: "a", type: new PrimitiveType("NUMBER") },
                 ])
@@ -101,11 +107,11 @@ describe("parseTypeNode()", () => {
         ],
         [
             host.getNode("primitiveArray"),
-            some(new ArrayType(new PrimitiveType("NUMBER"))),
+            right(new ArrayType(new PrimitiveType("NUMBER"))),
         ],
         [
             host.getNode("objectArray"),
-            some(
+            right(
                 new ArrayType(
                     new ObjectType([
                         { name: "a", type: new PrimitiveType("NUMBER") },
@@ -113,10 +119,20 @@ describe("parseTypeNode()", () => {
                 )
             ),
         ],
-        [host.getNode("empyArrayError"), none],
-        [host.getNode("literalError"), none],
-        [host.getNode("strLiteral"), some(new StringLiteral("AA"))],
-        [host.getNode("numLiteral"), some(new NumberLiteral(4))],
+        [
+            host.getNode("empyArrayError"),
+            left(new CannotParseTypeNodeError("", "", "", null)),
+        ],
+        [
+            host.getNode("literalError"),
+            left(
+                new FailedToParseUnionError("", "", "", [
+                    new CannotParseTypeError("", "", "", null),
+                ])
+            ),
+        ],
+        [host.getNode("strLiteral"), right(new StringLiteral("AA"))],
+        [host.getNode("numLiteral"), right(new NumberLiteral(4))],
     ])("table tests", (arg, result) => {
         test("correct type detection", () => {
             expect(
@@ -125,7 +141,7 @@ describe("parseTypeNode()", () => {
                     host.checker,
                     host.checker.getTypeAtLocation(arg.type),
                     testConfig
-                )
+                )({ fieldName: "", location: "", typeName: "" })
             ).toEqual(result);
         });
     });
@@ -158,9 +174,9 @@ describe("parseTypeNode()", () => {
                     ...testConfig,
                     nativeReferences: ["Observable", "Event"],
                 }
-            )
+            )({ fieldName: "", location: "", typeName: "" })
         ).toEqual(
-            some(
+            right(
                 new ObjectType([
                     {
                         name: "a",

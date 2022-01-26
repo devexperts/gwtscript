@@ -5,35 +5,55 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { Either, fromOption } from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/pipeable";
-import { chain, map } from "fp-ts/Option";
 import * as ts from "typescript";
+import {
+    ask,
+    chain,
+    chainW,
+    fromEither,
+    ReaderEither,
+    map,
+} from "fp-ts/lib/ReaderEither";
+
+import { ParsingError } from "@root/utils/parseInJavaString";
+
 import { ParserOutput } from "../model";
 import { createProgram } from "../utils/createProgram";
 import { getNodesToTranspile } from "./getNodesToTranspile";
 import { mapSimplifiedInterfaces } from "./mapSimplifiedInterfaces";
+import {
+    CannotFindConfigError,
+    FailedToParseInterface,
+    MapSimplifiedInterfacesError,
+} from "./parser.errors";
 import { ParserConfig } from "./parser.model";
-import { SimplifiedInterface } from "./unifyTypeOrInterface";
+import { ParseTypeNodeError } from "./parseTypeNode";
 
-export const parse = (config: ParserConfig): Either<unknown, ParserOutput> => {
+export const parse = (): ReaderEither<
+    ParserConfig,
+    | MapSimplifiedInterfacesError<FailedToParseInterface<ParseTypeNodeError>>
+    | ParsingError
+    | CannotFindConfigError,
+    ParserOutput
+> => {
     return pipe(
-        createProgram(config.tsconfigAbsolutePath),
-        chain((program: ts.Program) =>
+        ask<ParserConfig>(),
+        chain((config) =>
+            fromEither(createProgram(config.tsconfigAbsolutePath))
+        ),
+        chainW((program: ts.Program) =>
             pipe(
-                getNodesToTranspile(program, config),
-                chain((nodes: SimplifiedInterface[]) =>
-                    mapSimplifiedInterfaces(
-                        nodes,
-                        program.getTypeChecker(),
-                        config
-                    )
+                getNodesToTranspile(program),
+                chainW((nodes) =>
+                    mapSimplifiedInterfaces(nodes, program.getTypeChecker())
                 )
             )
         ),
         map((typesToGenerate) => ({
             typesToGenerate,
-        })),
-        fromOption(() => "error")
+        }))
     );
 };
+
+export * as ParserErrors from "./parser.errors";

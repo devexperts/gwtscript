@@ -15,17 +15,16 @@ compile({
     tsconfigAbsolutePath: resolve(__dirname, './tsconfig.json'),
     destinationFolder: "dist",
     rootPackage: "com.devexperts.generated",
-    generateFunctionType: (func, stringify) => {
+    generateFunctionType: (parameters, result) => {
         return {
-            result: "JsFunc",
+            result: `JsFunc<${result}>`,
             imports: ["com.stuff.JsFunc"]
         }
     },
-    generateArrayType: (arr, stringify) => {
-        const type = stringify(arr.type);
+    generateArrayType: (type) => {
         return {
-            imports: type.imports,
-            result: `Array<${type.result}>`
+            imports: [],
+            result: `Array<${type}>`
         }
     }
 })
@@ -135,13 +134,11 @@ declare type destinationFolder = string
 ```
 
 ##### generateFunctionType
-Configures function field generation. Takes FunctionType, abstracted TS AST functional node, and stringifier() function, common stringifier for nested types.
+Configures function field generation. Receives parameters and return type.
 ```ts
 declare type generateFunctionType = (
-        type: FunctionType,
-        stringifyParsedType: (
-            type: ParsedType
-        ) => { result: string; imports: string[] }
+        parameters: Array<{ name: string, type: string }>,
+        returnType: string
     ) => {
         result: string;
         imports: string[];
@@ -150,29 +147,29 @@ declare type generateFunctionType = (
 
 Example:
 ```ts
-const generateFunctionType = (func: FunctionType, stringify: (type: ParsedType) => { result: string, imports: string[] }) => {
+const generateFunctionType = (parameters: Array<{ name: string, type: string }>, returnType: string) => {
     if (
-        func.type.type === "VOID"
+        returnType === "void"
     ) {
         return {
             result: `Action${
-                func.parameters.length
-            }<${func.parameters
-                .map((param) => stringify(param).result)
+                parameters.length
+            }<${parameters
+                .map((param) => param.type)
                 .join(", ")}>`,
             imports: [
-                `com.github.timofeevda.gwt.rxjs.interop.functions.Action${func.parameters.length}`,
+                `com.github.timofeevda.gwt.rxjs.interop.functions.Action${parameters.length}`,
             ],
         };
     }
     return {
         result: `Func${
-            func.parameters.length
+            parameters.length
         }<${func.parameters
-            .map((param) => stringify(param).result)
-            .join(", ")}, ${stringify(func.type).result}>`,
+            .map((param) => param.type)
+            .join(", ")}, ${returnType}>`,
         imports: [
-            `com.github.timofeevda.gwt.rxjs.interop.functions.Func${func.parameters.length}`,
+            `com.github.timofeevda.gwt.rxjs.interop.functions.Func${parameters.length}`,
         ],
     };
 }
@@ -182,10 +179,7 @@ const generateFunctionType = (func: FunctionType, stringify: (type: ParsedType) 
 Array type generator (same with generateFunctionType)
 ```ts
 declare type generateArrayType = (
-    type: ArrayType,
-    stringifyParsedType: (
-        type: ParsedType
-    ) => { result: string; imports: string[] }
+    type: string,
 ) => {
     result: string;
     imports: string[];
@@ -193,11 +187,10 @@ declare type generateArrayType = (
 ```
 Example: 
 ```ts
-const generateArrayType = (arr: ArrayType, stringify: (type: ParsedType) => { result: string, imports: string[] }) => {
-    const type = stringify(arr.type);
+const generateArrayType = (type: string) => {
     return {
-        imports: ["com.devexperts.client.reusable.core.list.JsList"].concat(type.imports),
-        result: `JsList<${type.result}>`
+        imports: ["com.devexperts.client.reusable.core.list.JsList"],
+        result: `JsList<${type}>`
     }
 }
 ```

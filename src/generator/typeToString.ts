@@ -5,8 +5,17 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { Either, left, map, mapLeft, right } from "fp-ts/lib/Either";
+import { combineReaderEithers } from "@root/utils/combineReaderEithers";
+import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+import { left, map, mapLeft, right } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
+import {
+    ReaderEither,
+    map as mapReader,
+    mapLeft as mapLeftReader,
+    right as rightReader,
+} from "fp-ts/lib/ReaderEither";
+
 import {
     ArrayType,
     FunctionType,
@@ -19,23 +28,38 @@ import {
     UserType,
 } from "../model";
 import { isNumberUnion, isStringUnion } from "../utils/guards/isSpecificUnion";
-import { sequenceEither } from "../utils/sequenceEither";
-import { unEither } from "../utils/unEither";
 import { GeneratorConfig } from "./generator.config";
-import { ReferenceTypeGenericError } from "./generator.errors";
+import {
+    CannotGenerateEmptyUnionTypeError,
+    CannotGenerateFunctionArgumentError,
+    CannotGenerateFunctionArgumentsError,
+    CannotGenerateFunctionReturnTypeError,
+    CannotGenerateTypeError,
+    CannotGenerateUnionError,
+    CannotStringifyVoidError,
+    ReferenceTypeGenericError,
+} from "./generator.errors";
 
 export type TypeToStringResult = { result: string; imports: string[] };
 
+export type TypeToStringError =
+    | ReferenceTypeGenericError
+    | CannotStringifyVoidError
+    | CannotGenerateFunctionArgumentsError<TypeToStringError>
+    | CannotGenerateFunctionReturnTypeError<TypeToStringError>
+    | CannotGenerateEmptyUnionTypeError
+    | CannotGenerateUnionError
+    | CannotGenerateTypeError;
+
 export const typeToString = (
     type: ParsedType,
-    config: GeneratorConfig,
     getReferenceTo: (obj: RefableType) => { name: string }
-): Either<Error | ReferenceTypeGenericError, TypeToStringResult> => {
+): ReaderEither<GeneratorConfig, TypeToStringError, TypeToStringResult> => (
+    config
+) => {
     if (type instanceof PrimitiveType) {
         if (type.type === "VOID") {
-            return left(
-                new Error("Cannot stringify VOID when it's not a function type")
-            );
+            return left(new CannotStringifyVoidError());
         }
         if (config.primitiveMapping && config.primitiveMapping[type.type]) {
             return right(config.primitiveMapping[type.type]);
@@ -51,17 +75,63 @@ export const typeToString = (
         });
     }
     if (type instanceof FunctionType) {
-        return unEither(
-            typeToString,
-            {
-                imports: [],
-                result: "Error",
-            },
-            (unEither) => {
-                return config.generateFunctionType(type, (f) => {
-                    return unEither(f, config, getReferenceTo);
-                });
-            }
+        return pipe(
+            config,
+            combineReaderEithers(
+                type.type.identifier === "primitive" &&
+                    type.type.type === "VOID"
+                    ? rightReader({
+                          result: "void",
+                          imports: new Array<string>(),
+                      })
+                    : typeToString(type.type, getReferenceTo),
+                sequenceReaderEither(
+                    type.parameters.map((parameter) =>
+                        pipe(
+                            typeToString(parameter.type, getReferenceTo),
+                            mapReader((type) => ({
+                                type,
+                                name: parameter.name,
+                            })),
+                            mapLeftReader(
+                                (err) =>
+                                    new CannotGenerateFunctionArgumentError(
+                                        parameter.name,
+                                        err
+                                    )
+                            )
+                        )
+                    )
+                ),
+                (returnType, params) => {
+                    const imports = new Set(returnType.imports);
+
+                    const stringParameters = params.map((param) => {
+                        param.type.imports.forEach((item) => imports.add(item));
+                        return {
+                            name: param.name,
+                            type: param.type.result,
+                        };
+                    });
+
+                    const func = config.generateFunctionType(
+                        stringParameters,
+                        returnType.result
+                    );
+
+                    func.imports.forEach((item) => imports.add(item));
+
+                    return {
+                        result: func.result,
+                        imports: Array.from(imports),
+                    };
+                }
+            ),
+            mapLeft((error) => {
+                if (error instanceof Array)
+                    return new CannotGenerateFunctionArgumentsError(error);
+                return new CannotGenerateFunctionReturnTypeError(error);
+            })
         );
     }
 
@@ -74,16 +144,21 @@ export const typeToString = (
     }
 
     if (type instanceof ArrayType) {
-        return unEither(
-            typeToString,
-            {
-                imports: [],
-                result: "Error",
-            },
-            (unEithered) =>
-                config.generateArrayType(type, (f) =>
-                    unEithered(f, config, getReferenceTo)
-                )
+        return pipe(
+            config,
+            typeToString(type.type, getReferenceTo),
+            map((type) => {
+                const imports = new Set(type.imports);
+
+                const array = config.generateArrayType(type.result);
+
+                array.imports.forEach((item) => imports.add(item));
+
+                return {
+                    result: array.result,
+                    imports: Array.from(imports),
+                };
+            })
         );
     }
 
@@ -93,11 +168,11 @@ export const typeToString = (
         );
 
         if (types.length === 0) {
-            return left(new Error("Empty union type"));
+            return left(new CannotGenerateEmptyUnionTypeError());
         }
 
         if (types.length === 1) {
-            return typeToString(types[0], config, getReferenceTo);
+            return typeToString(types[0], getReferenceTo)(config);
         }
 
         const pureUnion = new UnionType(types);
@@ -111,11 +186,7 @@ export const typeToString = (
             });
         }
 
-        return left(
-            new Error(
-                `Cannot stringify union, ${JSON.stringify(type, undefined, 2)}`
-            )
-        );
+        return left(new CannotGenerateUnionError());
     }
 
     if (type instanceof ReferenceType) {
@@ -127,9 +198,10 @@ export const typeToString = (
             );
 
         const generics = pipe(
-            sequenceEither(
+            config,
+            sequenceReaderEither(
                 type.type.genericArgs.map((t) =>
-                    typeToString(t, config, getReferenceTo)
+                    typeToString(t, getReferenceTo)
                 )
             ),
             map((results) => {
@@ -166,5 +238,5 @@ export const typeToString = (
         });
     }
 
-    return left(new Error(`Unkown type: ${JSON.stringify(type, null, 2)}`));
+    return left(new CannotGenerateTypeError(type));
 };

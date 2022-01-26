@@ -10,6 +10,10 @@
         "resolveJsonModule": true,
         "module": "CommonJS",
         "target": "ES5",
+        "paths": {
+            "@root/*": ["./src/*"],
+            "@chalk": ["./src/utils/chalk"]
+        }
     },
     "include": [
         "src",

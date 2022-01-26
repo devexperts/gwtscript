@@ -6,12 +6,16 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { ParserConfig } from "./parser.model";
+import { isRight, left, right } from "fp-ts/lib/Either";
+import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
-import { none, Option, some } from "fp-ts/Option";
+import { ParserConfig } from "./parser.model";
 import { UserType } from "../model";
-import { parseInJavaString } from "../utils/parseInJavaString";
-import { isRight } from "fp-ts/lib/Either";
+import { parseInJavaString, ParsingError } from "../utils/parseInJavaString";
+import {
+    EmptyShapeException,
+    UnexpectedDeclarationTypeError,
+} from "./parser.errors";
 
 export interface SimplifiedInterface {
     name: string;
@@ -26,20 +30,26 @@ export interface SimplifiedInterface {
 export const unifyTypeOrInterface = (
     node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
     type: ts.Type,
-    config: ParserConfig,
     filePath: string,
     checker: ts.TypeChecker
-): Option<SimplifiedInterface> => {
+): ReaderEither<
+    ParserConfig,
+    EmptyShapeException | ParsingError,
+    SimplifiedInterface
+> => (config) => {
     const fields: SimplifiedInterface["fields"] = [];
 
     const props = type.getProperties();
 
-    if (props.length === 0) return none;
+    if (props.length === 0)
+        return left(
+            new EmptyShapeException(node.name.escapedText.toString(), filePath)
+        );
 
     for (const symbol of props) {
         let userInput: undefined | UserType = undefined;
 
-        if (config.ignoreField && symbol.declarations?.length > 0) {
+        if (symbol.declarations.length > 0) {
             const declaration = symbol.declarations[0];
             if (
                 ts.isPropertySignature(declaration) ||
@@ -62,23 +72,55 @@ export const unifyTypeOrInterface = (
                     if (isRight(result)) {
                         userInput = result.right;
                     } else {
-                        return none;
+                        return result;
                     }
                 }
+                if (ts.isPropertySignature(declaration)) {
+                    fields.push({
+                        name: symbol.name,
+                        node: declaration.type,
+                        type: checker.getTypeAtLocation(declaration.type),
+                        userInput,
+                    });
+                } else {
+                    const type = checker.getTypeAtLocation(declaration);
+                    fields.push({
+                        name: symbol.name,
+                        node: checker.typeToTypeNode(
+                            type,
+                            undefined,
+                            undefined
+                        ),
+                        type,
+                        userInput,
+                    });
+                }
+                // initialization using typeof
+            } else if (
+                ts.isPropertyAssignment(declaration) ||
+                ts.isMethodDeclaration(declaration)
+            ) {
+                const type = checker.getTypeAtLocation(declaration);
+                fields.push({
+                    name: symbol.name,
+                    node: checker.typeToTypeNode(type, undefined, undefined),
+                    type,
+                    userInput,
+                });
+            } else {
+                return left(
+                    new UnexpectedDeclarationTypeError(
+                        symbol.name,
+                        node.name.escapedText.toString(),
+                        filePath,
+                        ts.SyntaxKind[declaration.kind]
+                    )
+                );
             }
         }
-
-        const checkedType = checker.getTypeOfSymbolAtLocation(symbol, node);
-
-        fields.push({
-            name: symbol.name,
-            node: checker.typeToTypeNode(checkedType, undefined, undefined),
-            type: checkedType,
-            userInput,
-        });
     }
 
-    return some({
+    return right({
         name: node.name.escapedText.toString(),
         fields,
         filePath,
