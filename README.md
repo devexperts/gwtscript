@@ -25,6 +25,8 @@ This is GWTScript, tool for TS -> Java translation. It finds marked interfaces, 
     - [nativeReferencesMap](#nativereferencesmap-optional)
     - [getGroupName](#getgroupname-optional)
  - [Custom generator](#custom-generator)
+
+
 #### Package usage guide
 You should import compile() function and run it with config. Following code will find all files matching passed tsconfig, find all interfaces and types with "//@ToJava" comment and generate Java classes in "dist" folder.
 ```ts
