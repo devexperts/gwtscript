@@ -5,6 +5,25 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
+import { GeneratorConfig } from "./generator/generator.config";
+import { ParserConfig } from "./parser/parser.model";
+
+export type UserParserConfig = Omit<
+    ParserConfig,
+    | "interfacePredicate"
+    | "ignoreField"
+    | "nativeReferences"
+    | "inJavaRegExpTest"
+> & {
+    interfacePredicate: ParserConfig["interfacePredicate"] | RegExp;
+    ignoreField?: ParserConfig["ignoreField"] | RegExp;
+    inJavaRegExpTest?: ParserConfig["inJavaRegExpTest"];
+    nativeReferencesMap?: GeneratorConfig["nativeReferencesMap"];
+};
+
+export type CompilerConfig = UserParserConfig &
+    Omit<GeneratorConfig, "nativeReferencesMap">;
+
 export interface TypeField {
     name: string;
     type: ParsedType;

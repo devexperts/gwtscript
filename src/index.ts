@@ -7,13 +7,11 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import "./aliases";
 import { outputFile } from "fs-extra";
-import { chainW, fold } from "fp-ts/Either";
+import { chainW, fold, isRight } from "fp-ts/Either";
 import { pipe } from "fp-ts/lib/function";
 
 import { generate } from "./generator";
-import { GeneratorConfig } from "./generator/generator.config";
-import { parse } from "./parser";
-import { ParserConfig } from "./parser/parser.model";
+import { parse, ParserError } from "./parser";
 
 import { GeneratorResult } from "./generator/model";
 import {
@@ -25,22 +23,22 @@ import { chalk } from "./utils/chalk";
 import { printParseTypeNodeError } from "./utils/printParseTypeNodeError";
 import { CannotGenerateTypesError } from "./generator/generator.errors";
 import { printTypeToStringError } from "./utils/printTypeToStringError";
+import { CompilerConfig, ParserOutput, UserParserConfig } from "./model";
+import { isCompilerConfig } from "./utils/isCompilerConfig";
 
-export type CompilerConfig = Omit<
-    ParserConfig,
-    | "interfacePredicate"
-    | "ignoreField"
-    | "nativeReferences"
-    | "inJavaRegExpTest"
-> &
-    Omit<GeneratorConfig, "nativeReferencesMap"> & {
-        interfacePredicate: ParserConfig["interfacePredicate"] | RegExp;
-        ignoreField?: ParserConfig["ignoreField"] | RegExp;
-        inJavaRegExpTest?: ParserConfig["inJavaRegExpTest"];
-        nativeReferencesMap?: GeneratorConfig["nativeReferencesMap"];
-    };
+type BasicCompilerArguments = [CompilerConfig];
+type WithUserGeneratorArguments = [
+    UserParserConfig,
+    (err: ParserError | null, result: ParserOutput) => void
+];
 
-export const compile = (config: CompilerConfig): void => {
+export function compile(...args: BasicCompilerArguments): void;
+export function compile(...args: WithUserGeneratorArguments): void;
+export function compile(
+    ...args: BasicCompilerArguments | WithUserGeneratorArguments
+): void {
+    const config = args[0];
+
     const parserConfig = {
         interfacePredicate:
             typeof config.interfacePredicate === "function"
@@ -59,6 +57,17 @@ export const compile = (config: CompilerConfig): void => {
         logs: config.logs,
     };
 
+    const parserOutput = parse()(parserConfig);
+
+    if (!isCompilerConfig(config)) {
+        if (isRight(parserOutput)) {
+            args[1](null, parserOutput.right);
+        } else {
+            args[1](parserOutput.left, undefined);
+        }
+        return;
+    }
+
     const generatorConfig = {
         destinationFolder: config.destinationFolder,
         generateArrayType: config.generateArrayType,
@@ -70,7 +79,7 @@ export const compile = (config: CompilerConfig): void => {
     };
 
     pipe(
-        parse()(parserConfig),
+        parserOutput,
         chainW((value) => generate(value)(generatorConfig)),
         fold(
             (e) => {
@@ -143,4 +152,4 @@ export const compile = (config: CompilerConfig): void => {
             }
         )
     );
-};
+}
