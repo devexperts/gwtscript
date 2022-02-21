@@ -30,11 +30,14 @@ import {
 import { ParserConfig } from "./parser.model";
 import { ParseTypeNodeError } from "./parseTypeNode";
 
-export const parse = (): ReaderEither<
-    ParserConfig,
+export type ParserError =
     | MapSimplifiedInterfacesError<FailedToParseInterface<ParseTypeNodeError>>
     | ParsingError
-    | CannotFindConfigError,
+    | CannotFindConfigError;
+
+export const parse = (): ReaderEither<
+    ParserConfig,
+    ParserError,
     ParserOutput
 > => {
     return pipe(

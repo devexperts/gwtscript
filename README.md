@@ -4,6 +4,27 @@ This is GWTScript, tool for TS -> Java translation. It finds marked interfaces, 
 #### Development:
 > yarn start:dev
 
+
+#### Table of content
+ - [Package usage guide](#package-usage-guide)
+ - [User directives](#user-directives)
+    - [Marking directive](#marking-directive)
+    - [Ignoring directive](#ignoring-directive)
+    - [User input directive](#user-input-directive)
+ - [Config fields description](#config-fields-description)
+    - [tsconfigAbsolutePath](#tsconfigabsolutepath)
+    - [interfacePredicate](#interfacepredicate)
+    - [filePredicate](#filepredicate-optional)
+    - [ignoreField](#ignorefield-optional)
+    - [inJavaRegExpTest](#injavaregexptest-optional)
+    - [destinationFolder](#destinationfolder)
+    - [rootPackage](#rootpackage)
+    - [generateFunctionType](#generatefunctiontype)
+    - [generateArrayType](#generatearraytype)
+    - [primitiveMapping](#primitivemapping-optional)
+    - [nativeReferencesMap](#nativereferencesmap-optional)
+    - [getGroupName](#getgroupname-optional)
+ - [Custom generator](#custom-generator)
 #### Package usage guide
 You should import compile() function and run it with config. Following code will find all files matching passed tsconfig, find all interfaces and types with "//@ToJava" comment and generate Java classes in "dist" folder.
 ```ts
@@ -249,4 +270,139 @@ interface TypeToGenerate {
 }
 
 declare type getGroupName = (type: TypeToGenerate) => string
+```
+
+
+#### Custom generator
+This feature allows you to generate your own output instead of default Java GWT classes. Basically custom generator is just a function receiving parser output, so you can use it not only for code generation but just to take a look or experiments. 
+
+##### Usage
+When you use a custom generator it is no longer necessary to provide basic generator config fields so the config type changes while you use a custom generator.
+```ts
+compile(
+    {
+        interfacePredicate: /@ToTranslate/,
+        tsconfigAbsolutePath: resolve(__dirname, './tsconfig.json'),
+    },
+    (parsed: ParserOutput) => {
+        // Our code
+    }
+)
+```
+Generator function should be passed as a second argument to compile() function and so you can use parser output. 
+The types of nodes provided by Parser Output are described below.
+
+```ts
+interface ParserOutput {
+    typesToGenerate: readonly TypeToGenerate[];
+}
+
+// Marked type
+interface TypeToGenerate {
+    name: string;
+    fields: readonly TypeField[];
+    sourcePath: string;
+}
+
+interface TypeField {
+    name: string;
+    type: ParsedType;
+}
+
+type ParsedType =
+    | PrimitiveType
+    | FunctionType
+    | ObjectType
+    | ArrayType
+    | UnionType
+    | ReferenceType
+    | UserType
+    | NumberLiteral
+    | StringLiteral;
+
+// Basic class for types
+abstract class Type<ID, T> {
+    public abstract identifier: ID;
+    constructor(public type: T) {}
+}
+
+/*
+    Literals like "string literal" or just 4
+    type A = {
+        stringLiteral: "str"
+        numberLiteral: 4
+    }
+*/
+class Literal<T extends number | string> extends Type<"literal", T> {
+    identifier: "literal" = "literal";
+}
+
+class NumberLiteral extends Literal<number> {}
+
+class StringLiteral extends Literal<string> {}
+
+// parser only supports this primitives
+type PrimitiveTypes = {
+    NUMBER: true;
+    STRING: true;
+    BOOLEAN: true;
+    VOID: true;
+    ANY: true;
+};
+
+class PrimitiveType extends Type<"primitive", keyof PrimitiveTypes> {
+    identifier: "primitive" = "primitive";
+}
+
+// "type" argument here is the return type
+class FunctionType extends Type<"function", ParsedType> {
+    identifier: "function" = "function";
+
+    constructor(
+        type: ParsedType,
+        public parameters: ReadonlyArray<{ name: string; type: ParsedType }>
+    ) {
+        super(type);
+    }
+}
+
+class ObjectType extends Type<
+    "object",
+    ReadonlyArray<{ name: string; type: ParsedType }>
+> {
+    identifier: "object" = "object";
+    constructor(
+        value: ReadonlyArray<{ name: string; type: ParsedType }>
+    ) {
+        super(value);
+    }
+}
+
+class ArrayType extends Type<"array", ParsedType> {
+    identifier: "array" = "array";
+}
+
+
+class UnionType<T extends ParsedType = ParsedType> extends Type<
+    "union",
+    readonly T[]
+> {
+    identifier: "union" = "union";
+}
+
+
+class ReferenceType extends Type<
+    "reference",
+    { typeName: string; genericArgs: readonly ParsedType[] }
+> {
+    identifier: "reference" = "reference";
+}
+
+// The type you get when use User Input directive
+class UserType extends Type<
+    "hard-coded-type",
+    { text: string; imports: string[] }
+> {
+    identifier: "hard-coded-type" = "hard-coded-type";
+}
 ```
