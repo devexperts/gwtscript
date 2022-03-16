@@ -34,7 +34,6 @@ import { compile } from '@dx-private/java-translate';
 import { resolve } from 'path';
 
 compile({
-    interfacePredicate: /@ToJava/,
     tsconfigAbsolutePath: resolve(__dirname, './tsconfig.json'),
     destinationFolder: "dist",
     rootPackage: "com.devexperts.generated",
@@ -80,6 +79,113 @@ type B = {
 // @ToJava
 type C = Pick<A, "a" | "b">
 ```
+Also you can override type name and package
+```ts
+// overriding name:
+// @ToJava as B
+interface A {
+    a: number
+    b: string
+    c: boolean
+}
+
+// overriding package:
+// @ToJava generated.js
+// or
+// @ToJava to generated.js
+interface A {
+    a: number
+    b: string
+    c: boolean
+}
+
+// both:
+// @ToJava as B to generated.js
+// or
+// @ToJava to generated.js as B
+// or
+// @ToJava generated.js as B
+// or
+/* 
+    @ToJava 
+        as B
+        to generated.js
+*/
+interface A {
+    a: number
+    b: string
+    c: boolean
+}
+```
+The provided package will be merged with specified root package and generated at the corresponding path.
+
+For example:
+
+```ts
+// Source
+
+// @ToJava as JsCarRed to generated.js.cars
+interface RedCar {
+    speed: number;
+    color: string;
+}
+
+// @ToJava as JsCarGreen to generated.js.cars
+interface GreenCar {
+    speed: number;
+    color: string;
+}
+
+// @ToJava as JsAirplane to generated.js.airplanes
+interface Airplane {
+    speed: number;
+    color: string;
+}
+```
+
+```ts
+// Script
+
+import { compile } from '@dx-private/java-translate';
+import { resolve } from 'path';
+
+compile({
+    tsconfigAbsolutePath: resolve(__dirname, './tsconfig.json'),
+    destinationFolder: "dist",
+    rootPackage: "com.devexperts",
+    generateFunctionType: (parameters, result) => {
+        return {
+            result: `JsFunc<${result}>`,
+            imports: ["com.stuff.JsFunc"]
+        }
+    },
+    generateArrayType: (type) => {
+        return {
+            imports: [],
+            result: `Array<${type}>`
+        }
+    }
+})
+```
+
+Result packages:
+ - com.devexperts.generated.js.cars.jscarred
+ - com.devexperts.generated.js.cars.jscargreen
+ - com.devexperts.generated.js.airplanes.jsairplane
+
+Result file structure:
+ - dist
+   - generated
+     - js
+       - cars
+         - jscarred
+           - JsCarRed.java
+         - jscargreen
+           - JsCarGreen.java
+       - airplanes
+         - jsairplane
+           - JsAirplane.java
+
 ##### Ignoring directive
 ---
 ```ts
@@ -116,7 +222,7 @@ Absolute path to project tsconfig file.
 declare type tsconfigAbsolutePath = string;
 ```
 
-##### interfacePredicate
+##### interfacePredicate (Optional)(Default: /@ToJava/)
 Filter (aka selector) (aka predicate) for interfaces and type declarations.
 ```ts
 declare type interfacePredicate = 

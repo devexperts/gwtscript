@@ -8,7 +8,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import { pipe } from "fp-ts/lib/pipeable";
 import { ask, bimap, chain, ReaderEither } from "fp-ts/lib/ReaderEither";
 
-import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
 
 import { ParserOutput } from "../model";
 import { generateType } from "./generateType";

@@ -10,6 +10,7 @@ import { isRight, left, right } from "fp-ts/lib/Either";
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
 import { chalk } from "@chalk";
+import { ToJavaSyntaxError } from "@root/utils/parseToJavaString";
 import { ParsingError } from "@root/utils/parseInJavaString";
 
 import { ParserConfig } from "./parser.model";
@@ -21,9 +22,11 @@ import { EmptyShapeException } from "./parser.errors";
 
 export const getNodesToTranspile = (
     program: ts.Program
-): ReaderEither<ParserConfig, ParsingError, SimplifiedInterface[]> => (
-    config
-) => {
+): ReaderEither<
+    ParserConfig,
+    ParsingError | EmptyShapeException | ToJavaSyntaxError,
+    SimplifiedInterface[]
+> => (config) => {
     const fileNames = program.getRootFileNames();
 
     const results: SimplifiedInterface[] = [];

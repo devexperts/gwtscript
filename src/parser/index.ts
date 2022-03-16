@@ -17,6 +17,7 @@ import {
 } from "fp-ts/lib/ReaderEither";
 
 import { ParsingError } from "@root/utils/parseInJavaString";
+import { ToJavaSyntaxError } from "@root/utils/parseToJavaString";
 
 import { ParserOutput } from "../model";
 import { createProgram } from "../utils/createProgram";
@@ -24,6 +25,7 @@ import { getNodesToTranspile } from "./getNodesToTranspile";
 import { mapSimplifiedInterfaces } from "./mapSimplifiedInterfaces";
 import {
     CannotFindConfigError,
+    EmptyShapeException,
     FailedToParseInterface,
     MapSimplifiedInterfacesError,
 } from "./parser.errors";
@@ -33,7 +35,9 @@ import { ParseTypeNodeError } from "./parseTypeNode";
 export type ParserError =
     | MapSimplifiedInterfacesError<FailedToParseInterface<ParseTypeNodeError>>
     | ParsingError
-    | CannotFindConfigError;
+    | CannotFindConfigError
+    | ToJavaSyntaxError
+    | EmptyShapeException;
 
 export const parse = (): ReaderEither<
     ParserConfig,

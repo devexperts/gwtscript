@@ -12,7 +12,7 @@ import { pipe } from "fp-ts/lib/pipeable";
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
 import { ObjectType, RefableType, TypeToGenerate } from "../model";
-import { unEither } from "../utils/unEither";
+import { unEither } from "../utils/fp-ts/unEither";
 import { generateContent } from "./generateContent";
 import { generateExtraObj } from "./generateExtraObj";
 import { generateUnionType } from "./generateUnionType";
@@ -38,24 +38,37 @@ export const generateType = (
                 type: new ObjectType([]),
             },
             (unEithered) => {
-                const group = config.getGroupName
-                    ? config.getGroupName(type)
-                    : "";
-                const folderPath = resolve(
-                    config.destinationFolder,
+                const name = type?.overrides?.name ?? type.name;
+
+                const group =
+                    config.getGroupName && !type?.overrides?.package
+                        ? config.getGroupName(type)
+                        : "";
+
+                const folder = [config.destinationFolder, group];
+
+                if (type?.overrides?.package)
+                    folder.push(...type.overrides.package.split("."));
+
+                folder.push(name.toLowerCase());
+
+                const folderPath = resolve.apply(this, folder);
+
+                const packageName = [
+                    config.rootPackage,
                     group,
-                    `${type.name.toLowerCase()}/`
-                );
-                const packageName = `${config.rootPackage}${
-                    group ? `.${group}` : ""
-                }.${type.name.toLowerCase()}`;
+                    type?.overrides?.package,
+                    name.toLowerCase(),
+                ]
+                    .filter((a) => !!a)
+                    .join(".");
 
                 const extraTypes = new Map<string, ExtraObject>();
-                const handleRef = (name: string, toRef: RefableType) => {
+                const handleRef = (objName: string, toRef: RefableType) => {
                     const extraName =
                         toRef.identifier === "object"
-                            ? toRef.nameNotation ?? `${type.name}_${name}`
-                            : `${type.name}_${name}`;
+                            ? toRef.nameNotation ?? `${name}_${objName}`
+                            : `${name}_${objName}`;
 
                     if (!extraTypes.has(extraName)) {
                         if (toRef.identifier === "object") {
@@ -95,8 +108,8 @@ export const generateType = (
                     generateContent(type, packageName, handleRef),
                     map((content) => ({
                         content,
-                        name: type.name,
-                        path: resolve(folderPath, `${type.name}.java`),
+                        name: name,
+                        path: resolve(folderPath, `${name}.java`),
                         children: Array.from(extraTypes.values()),
                         sourceName: type.name,
                         sourcePath: type.sourcePath,

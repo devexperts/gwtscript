@@ -155,6 +155,7 @@ describe("generateType()", () => {
                     },
                 ],
                 sourcePath: "asd/asdss/aaa/test.ts",
+                overrides: null,
             })(config)
         ).toEqual(
             right({

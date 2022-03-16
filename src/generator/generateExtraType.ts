@@ -12,7 +12,7 @@ import {
 import { Either, map, mapLeft } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
 
-import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
 
 import { ObjectType, RefableType } from "../model";
 import { GeneratorConfig } from "./generator.config";

@@ -51,6 +51,7 @@ describe("generateContent()", () => {
                         { name: "b", type: new PrimitiveType("STRING") },
                     ],
                     sourcePath: "/asd/asd/AA.java",
+                    overrides: null,
                 },
                 "a.a",
                 (name) => ({

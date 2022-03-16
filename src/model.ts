@@ -15,7 +15,7 @@ export type UserParserConfig = Omit<
     | "nativeReferences"
     | "inJavaRegExpTest"
 > & {
-    interfacePredicate: ParserConfig["interfacePredicate"] | RegExp;
+    interfacePredicate?: ParserConfig["interfacePredicate"] | RegExp;
     ignoreField?: ParserConfig["ignoreField"] | RegExp;
     inJavaRegExpTest?: ParserConfig["inJavaRegExpTest"];
     nativeReferencesMap?: GeneratorConfig["nativeReferencesMap"];
@@ -44,6 +44,10 @@ export interface TypeToGenerate {
     name: string;
     fields: readonly TypeField[];
     sourcePath: string;
+    overrides: null | {
+        name: string | null;
+        package: string | null;
+    };
 }
 
 export interface ParserOutput {

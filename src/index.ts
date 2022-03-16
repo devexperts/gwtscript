@@ -24,7 +24,7 @@ import { printParseTypeNodeError } from "./utils/printParseTypeNodeError";
 import { CannotGenerateTypesError } from "./generator/generator.errors";
 import { printTypeToStringError } from "./utils/printTypeToStringError";
 import { CompilerConfig, ParserOutput, UserParserConfig } from "./model";
-import { isCompilerConfig } from "./utils/isCompilerConfig";
+import { isCompilerConfig } from "./utils/guards/isCompilerConfig";
 
 type BasicCompilerArguments = [CompilerConfig];
 type WithUserGeneratorArguments = [
@@ -38,12 +38,17 @@ export function compile(
     ...args: BasicCompilerArguments | WithUserGeneratorArguments
 ): void {
     const config = args[0];
+    const interfacePredicate = config.interfacePredicate ?? /@ToJava/;
 
     const parserConfig = {
+        interfacePredicateRegexp:
+            typeof interfacePredicate === "function"
+                ? undefined
+                : interfacePredicate,
         interfacePredicate:
-            typeof config.interfacePredicate === "function"
-                ? config.interfacePredicate
-                : defaultInterfacePredicate(config.interfacePredicate),
+            typeof interfacePredicate === "function"
+                ? interfacePredicate
+                : defaultInterfacePredicate(interfacePredicate),
         tsconfigAbsolutePath: config.tsconfigAbsolutePath,
         filePredicate: config.filePredicate,
         ignoreField:
@@ -120,13 +125,24 @@ export function compile(
                     console.groupEnd();
                     return;
                 }
-                return console.error(e);
+                return console.log(
+                    chalk.bold.red(`${e.constructor.name}: ${e.message}`)
+                );
             },
             (res: GeneratorResult[]) => {
                 res.forEach((file) => {
-                    console.log(
-                        chalk.green.bold(`Generating type ${file.name}`)
-                    );
+                    if (file.name !== file.sourceName) {
+                        console.log(
+                            chalk.green.bold(`Generating type ${file.name}`),
+                            chalk.bgYellow.black(
+                                ` Name was overridden from "${file.sourceName}" `
+                            )
+                        );
+                    } else {
+                        console.log(
+                            chalk.green.bold(`Generating type ${file.name}`)
+                        );
+                    }
                     console.log(
                         chalk.green(`From: ${chalk.italic(file.sourcePath)}`)
                     );
