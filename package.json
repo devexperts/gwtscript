@@ -1,6 +1,6 @@
 {
   "name": "@dx-private/java-translate",
-  "version": "2.0.1-alpha",
+  "version": "2.1.0",
   "main": "lib/index.js",
   "license": "MPL-2.0",
   "dependencies": {
@@ -20,6 +20,7 @@
     "@types/node": "^14.14.31",
     "@typescript-eslint/eslint-plugin": "^4.15.2",
     "@typescript-eslint/parser": "^4.15.2",
+    "del-cli": "^4.0.1",
     "eslint": "^7.20.0",
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-import": "^2.25.4",
@@ -41,10 +42,11 @@
     "start": "ts-node run.ts",
     "build": "tsc --project ./tsconfig.build.json",
     "typecheck": "tsc",
-    "prepublishOnly": "yarn jest && yarn build",
+    "prepublishOnly": "yarn jest && yarn clear && yarn build",
     "jest": "jest --no-cache",
     "jest:watch": "jest --watch",
-    "add-copyrights": "ts-node addCopyrights.ts"
+    "add-copyrights": "ts-node addCopyrights.ts",
+    "clear": "del --force lib"
   },
   "nodemonConfig": {
     "execMap": {
