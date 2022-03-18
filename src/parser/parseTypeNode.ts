@@ -21,9 +21,9 @@ import {
 } from "fp-ts/lib/ReaderEither";
 import { flatten } from "fp-ts/lib/ReadonlyArray";
 
-import { combineReaderEithers } from "@root/utils/combineReaderEithers";
-import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
-import { sequenceEither } from "@root/utils/sequenceEither";
+import { combineReaderEithers } from "@root/utils/fp-ts/combineReaderEithers";
+import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
+import { sequenceEither } from "@root/utils/fp-ts/sequenceEither";
 
 import { getParsedType, GetParsedTypeError } from "./getParsedType";
 import { ParserConfig } from "./parser.model";

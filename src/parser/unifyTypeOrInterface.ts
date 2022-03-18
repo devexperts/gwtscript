@@ -6,16 +6,25 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { isRight, left, right } from "fp-ts/lib/Either";
+import { isRight, left, map, right } from "fp-ts/lib/Either";
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
+import { getOrElse, isSome } from "fp-ts/lib/Option";
+import { pipe } from "fp-ts/lib/function";
+
+import {
+    parseToJavaString,
+    ToJavaSyntaxError,
+} from "@root/utils/parseToJavaString";
+import { ParsingError } from "@root/utils/parseInJavaString";
+import { getComments } from "@root/utils/getComments";
 
 import { ParserConfig } from "./parser.model";
 import { UserType } from "../model";
-import { parseInJavaString, ParsingError } from "../utils/parseInJavaString";
 import {
     EmptyShapeException,
     UnexpectedDeclarationTypeError,
 } from "./parser.errors";
+import { getInJavaDeclaration } from "./utils/getInJavaDeclaration";
 
 export interface SimplifiedInterface {
     name: string;
@@ -26,6 +35,10 @@ export interface SimplifiedInterface {
         userInput?: UserType;
     }>;
     filePath: string;
+    overrides: null | {
+        name: string | null;
+        package: string | null;
+    };
 }
 export const unifyTypeOrInterface = (
     node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
@@ -34,7 +47,7 @@ export const unifyTypeOrInterface = (
     checker: ts.TypeChecker
 ): ReaderEither<
     ParserConfig,
-    EmptyShapeException | ParsingError,
+    EmptyShapeException | ParsingError | ToJavaSyntaxError,
     SimplifiedInterface
 > => (config) => {
     const fields: SimplifiedInterface["fields"] = [];
@@ -58,21 +71,14 @@ export const unifyTypeOrInterface = (
                 if (config.ignoreField(declaration)) {
                     continue;
                 }
-                const text = declaration.getFullText();
-                const ranges = ts.getLeadingCommentRanges(text, 0);
-                const inJavaComment = ranges?.find((item) => {
-                    const comment = text.slice(item.pos, item.end);
-                    if (config.inJavaRegExpTest.test(comment)) return true;
-                });
-                if (inJavaComment) {
-                    const result = parseInJavaString(
-                        text.slice(inJavaComment.pos, inJavaComment.end),
-                        config
-                    );
-                    if (isRight(result)) {
-                        userInput = result.right;
+
+                const inJava = getInJavaDeclaration(declaration)(config);
+
+                if (isSome(inJava)) {
+                    if (isRight(inJava.value)) {
+                        userInput = inJava.value.right;
                     } else {
-                        return result;
+                        return inJava.value;
                     }
                 }
                 if (ts.isPropertySignature(declaration)) {
@@ -120,9 +126,34 @@ export const unifyTypeOrInterface = (
         }
     }
 
+    if (config.interfacePredicateRegexp) {
+        return pipe(
+            getComments(node),
+            getOrElse(() => new Array<string>()),
+            (lines) =>
+                lines.find((line) =>
+                    config.interfacePredicateRegexp.test(line)
+                ),
+            (directive) =>
+                parseToJavaString(directive, config.interfacePredicateRegexp),
+            map((overrides) => ({
+                name: node.name.escapedText.toString(),
+                fields,
+                filePath,
+                overrides: overrides.isEmpty
+                    ? null
+                    : {
+                          name: overrides.name,
+                          package: overrides.package,
+                      },
+            }))
+        );
+    }
+
     return right({
         name: node.name.escapedText.toString(),
         fields,
         filePath,
+        overrides: null,
     });
 };

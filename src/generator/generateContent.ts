@@ -10,7 +10,7 @@ import { pipe } from "fp-ts/lib/pipeable";
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
 import { RefableType, TypeToGenerate } from "../model";
-import { sequenceEither } from "../utils/sequenceEither";
+import { sequenceEither } from "../utils/fp-ts/sequenceEither";
 import { GeneratorConfig } from "./generator.config";
 import {
     CannotGenerateInterfaceError,
@@ -69,7 +69,7 @@ ${imports.map((i) => `import ${i};`).join(`
 
 // Source: type ${type.name} from ${type.sourcePath}
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
-public class ${type.name} extends BaseProps {
+public class ${type?.overrides?.name ?? type.name} extends BaseProps {
     ${fields.map((field) => {
         return `public ${field.type} ${field.name};`;
     }).join(`

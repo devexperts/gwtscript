@@ -5,8 +5,8 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { combineReaderEithers } from "@root/utils/combineReaderEithers";
-import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+import { combineReaderEithers } from "@root/utils/fp-ts/combineReaderEithers";
+import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
 import { left, map, mapLeft, right } from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/pipeable";
 import {

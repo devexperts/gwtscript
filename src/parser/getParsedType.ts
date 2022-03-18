@@ -10,7 +10,7 @@ import { pipe } from "fp-ts/lib/pipeable";
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
 import { right, left, map as mapEither, mapLeft } from "fp-ts/lib/Either";
 
-import { sequenceReaderEither } from "@root/utils/sequenceReaderEither";
+import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
 
 import {
     NumberLiteral,

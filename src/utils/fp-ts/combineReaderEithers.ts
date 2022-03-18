@@ -6,6 +6,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
+
 import { combineEithers } from "./combineEithers";
 
 export const combineReaderEithers = <Env, Left1, Right1, Left2, Right2, Next>(

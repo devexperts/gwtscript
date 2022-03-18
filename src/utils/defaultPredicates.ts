@@ -5,52 +5,49 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import {
-    getLeadingCommentRanges,
-    PropertySignature,
-    InterfaceDeclaration,
-} from "typescript";
+import { constFalse, pipe } from "fp-ts/lib/function";
+import { getOrElse, map } from "fp-ts/lib/Option";
+import { PropertySignature, InterfaceDeclaration } from "typescript";
+
+import { getComments } from "./getComments";
 
 export const defaultFieldPredicate = (reg: RegExp) => (
     node: PropertySignature
 ): boolean => {
-    const commentRanges = getLeadingCommentRanges(node.getFullText(), 0);
+    return pipe(
+        getComments(node),
+        map((lines) => {
+            let isIgnored = false;
 
-    if (!commentRanges?.length) return false;
+            for (const line of lines) {
+                if (line.search(reg) !== -1) {
+                    isIgnored = true;
+                    break;
+                }
+            }
 
-    let isIgnored = false;
-
-    for (const range of commentRanges) {
-        const comment = node.getFullText().slice(range.pos, range.end);
-        if (comment.search(reg) !== -1) {
-            isIgnored = true;
-            break;
-        }
-    }
-
-    if (!isIgnored) return false;
-
-    return true;
+            return isIgnored;
+        }),
+        getOrElse(constFalse)
+    );
 };
 
 export const defaultInterfacePredicate = (reg: RegExp) => (
     node: InterfaceDeclaration
 ): boolean => {
-    const commentRanges = getLeadingCommentRanges(node.getFullText(), 0);
+    return pipe(
+        getComments(node),
+        map((lines) => {
+            let toExport = false;
+            for (const line of lines) {
+                if (line.search(reg) !== -1) {
+                    toExport = true;
+                    break;
+                }
+            }
 
-    if (!commentRanges?.length) return false;
-
-    let toExport = false;
-
-    for (const range of commentRanges) {
-        const comment = node.getFullText().slice(range.pos, range.end);
-        if (comment.search(reg) !== -1) {
-            toExport = true;
-            break;
-        }
-    }
-
-    if (!toExport) return false;
-
-    return true;
+            return toExport;
+        }),
+        getOrElse(constFalse)
+    );
 };

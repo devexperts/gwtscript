@@ -10,7 +10,7 @@ import { pipe } from "fp-ts/lib/function";
 import { right, map, mapLeft } from "fp-ts/lib/Either";
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
 
-import { sequenceEither } from "@root/utils/sequenceEither";
+import { sequenceEither } from "@root/utils/fp-ts/sequenceEither";
 
 import { parseTypeNode, ParseTypeNodeError } from "./parseTypeNode";
 import { ParserConfig } from "./parser.model";
@@ -69,6 +69,7 @@ export const mapSimplifiedInterfaces = (
                             name: entity.name,
                             fields: value,
                             sourcePath: entity.filePath,
+                            overrides: entity.overrides,
                         })
                     ),
                     mapLeft(

@@ -23,6 +23,11 @@ describe("mapSimplifiedInterfaces()", () => {
                     c(a: number): B
                 }
             `,
+            overrides: ifc`
+                interface Overrides {
+                    name: string
+                }
+            `,
         },
     });
 
@@ -58,6 +63,29 @@ describe("mapSimplifiedInterfaces()", () => {
                         ),
                     },
                 ],
+                overrides: null,
+            })
+        );
+    });
+
+    it("handles overrides", () => {
+        expect(
+            pipe(
+                unifyTypeOrInterface(
+                    host.getNode("overrides"),
+                    host.checker.getTypeAtLocation(host.getNode("overrides")),
+                    "",
+                    host.checker
+                ),
+                chainW((item) => mapSimplifiedInterfaces([item], host.checker)),
+                map((items) => items[0])
+            )(testConfig)
+        ).toEqual(
+            right({
+                name: "Overrides",
+                sourcePath: "",
+                fields: [{ name: "name", type: new PrimitiveType("STRING") }],
+                overrides: null,
             })
         );
     });

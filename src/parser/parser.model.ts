@@ -13,6 +13,7 @@ import {
 } from "typescript";
 
 export interface ParserConfig {
+    interfacePredicateRegexp?: RegExp;
     interfacePredicate: (
         node: InterfaceDeclaration | TypeAliasDeclaration
     ) => boolean;
