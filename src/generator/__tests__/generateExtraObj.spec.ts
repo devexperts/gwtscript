@@ -1,4 +1,5 @@
 import { Either, left, right } from "fp-ts/lib/Either";
+
 import { ObjectType, PrimitiveType, UnionType } from "../../model";
 import { generateExtraObj } from "../generateExtraObj";
 
@@ -62,7 +63,7 @@ describe("generateExtraObj()", () => {
 
 import com.test.pk.int;
 
-
+@JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class test {
     public int a;
 }

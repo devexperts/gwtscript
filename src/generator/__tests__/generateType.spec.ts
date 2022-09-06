@@ -199,7 +199,7 @@ public class Test extends BaseProps {
 import com.test.pk.int;
 import com.test.pk.str;
 
-
+@JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class Test_objField {
     public int a;
     public str b;
@@ -223,7 +223,7 @@ public class Test_objField {
 
 import com.js.Event;
 
-
+@JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class Test_refable {
     public Event event;
 }

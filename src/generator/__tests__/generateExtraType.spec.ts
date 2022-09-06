@@ -1,4 +1,5 @@
 import { right } from "fp-ts/lib/Either";
+
 import { ObjectType, PrimitiveType } from "../../model";
 import { generateExtraType } from "../generateExtraType";
 import { GeneratorConfig } from "../generator.config";
@@ -58,7 +59,7 @@ describe("generateExtraType()", () => {
 import com.test.pk.int;
 import com.test.pk.str;
 
-
+@JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class Test {
     public int a;
     public str b;

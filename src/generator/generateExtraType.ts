@@ -67,7 +67,7 @@ export const generateExtraType = (
 ${imports.map((i) => `import ${i};`).join(`
 `)}
 
-
+@JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")
 public class ${name} {
     ${fields.map((field) => {
         return `public ${field.type} ${field.name};`;
