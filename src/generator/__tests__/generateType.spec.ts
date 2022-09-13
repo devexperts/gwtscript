@@ -196,6 +196,8 @@ public class Test extends BaseProps {
                         path: "/dist/test/Test_objField.java",
                         content: `package com.devexperts.test;
 
+import jsinterop.annotations.JsPackage;
+import jsinterop.annotations.JsType;
 import com.test.pk.int;
 import com.test.pk.str;
 
@@ -221,6 +223,8 @@ public class Test_objField {
                         path: "/dist/test/Test_refable.java",
                         content: `package com.devexperts.test;
 
+import jsinterop.annotations.JsPackage;
+import jsinterop.annotations.JsType;
 import com.js.Event;
 
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")

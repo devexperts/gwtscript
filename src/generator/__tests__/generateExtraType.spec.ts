@@ -56,6 +56,8 @@ describe("generateExtraType()", () => {
             right(
                 `package a.a;
 
+import jsinterop.annotations.JsPackage;
+import jsinterop.annotations.JsType;
 import com.test.pk.int;
 import com.test.pk.str;
 

@@ -61,6 +61,8 @@ describe("generateExtraObj()", () => {
             right({
                 content: `package test;
 
+import jsinterop.annotations.JsPackage;
+import jsinterop.annotations.JsType;
 import com.test.pk.int;
 
 @JsType(isNative = true, namespace = JsPackage.GLOBAL, name = "Object")

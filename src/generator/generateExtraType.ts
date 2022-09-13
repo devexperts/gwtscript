@@ -47,7 +47,10 @@ export const generateExtraType = (
                 )
             ),
             map((types) => {
-                const imports = new Set<string>([]);
+                const imports = new Set<string>([
+                    "jsinterop.annotations.JsPackage",
+                    "jsinterop.annotations.JsType",
+                ]);
 
                 return {
                     fields: types.map((type) => {
