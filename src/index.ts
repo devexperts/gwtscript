@@ -18,7 +18,10 @@ import {
     defaultInterfacePredicate,
     defaultFieldPredicate,
 } from "./utils/defaultPredicates";
-import { MapSimplifiedInterfacesError } from "./parser/parser.errors";
+import {
+    FailedToUnifyTypeOfInterface,
+    MapSimplifiedInterfacesError,
+} from "./parser/parser.errors";
 import { chalk } from "./utils/chalk";
 import { printParseTypeNodeError } from "./utils/printParseTypeNodeError";
 import { CannotGenerateTypesError } from "./generator/generator.errors";
@@ -106,9 +109,7 @@ export function compile(
                         console.groupEnd();
                         console.groupEnd();
                     }
-                    return;
-                }
-                if (e instanceof CannotGenerateTypesError) {
+                } else if (e instanceof CannotGenerateTypesError) {
                     console.log(chalk.bold.red(e.message));
                     console.group();
                     for (const error of e.errors) {
@@ -123,11 +124,17 @@ export function compile(
                         console.groupEnd();
                     }
                     console.groupEnd();
-                    return;
+                } else if (e instanceof FailedToUnifyTypeOfInterface) {
+                    console.log(chalk.bold.red(e.message));
+                    console.group();
+                    console.log(chalk.bold.red(e.error.message));
+                    console.groupEnd();
+                } else {
+                    console.log(
+                        chalk.bold.red(`${e.constructor.name}: ${e.message}`)
+                    );
                 }
-                return console.log(
-                    chalk.bold.red(`${e.constructor.name}: ${e.message}`)
-                );
+                process.exit(1);
             },
             (res: GeneratorResult[]) => {
                 res.forEach((file) => {

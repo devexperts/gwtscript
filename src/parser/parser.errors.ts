@@ -254,6 +254,13 @@ export class FailedToParseInterface<ErrorType = Error> extends Error {
     }
 }
 
+export class FailedToUnifyTypeOfInterface<E extends Error> extends Error {
+    constructor(public typeName: string, public path: string, public error: E) {
+        super(`Failed to unify type "${typeName}". File path: "${path}"`);
+        Object.setPrototypeOf(this, FailedToUnifyTypeOfInterface.prototype);
+    }
+}
+
 export class MapSimplifiedInterfacesError<ErrorType = Error> extends Error {
     constructor(public errors: ErrorType[]) {
         super(`Failed to parse some interfaces`);
@@ -262,12 +269,7 @@ export class MapSimplifiedInterfacesError<ErrorType = Error> extends Error {
 }
 
 export class UnexpectedDeclarationTypeError extends Error {
-    constructor(
-        public fieldName: string,
-        public typeName: string,
-        public path: string,
-        public declarationType: string
-    ) {
+    constructor(public fieldName: string, public declarationType: string) {
         super(
             `Field "${fieldName}" has unexpected declaration type "${declarationType}"`
         );

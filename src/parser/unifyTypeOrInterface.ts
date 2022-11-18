@@ -6,7 +6,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { isRight, left, map, right } from "fp-ts/lib/Either";
+import { isRight, left, map, mapLeft, right } from "fp-ts/lib/Either";
 import { ReaderEither } from "fp-ts/lib/ReaderEither";
 import { getOrElse, isSome } from "fp-ts/lib/Option";
 import { pipe } from "fp-ts/lib/function";
@@ -22,6 +22,7 @@ import { ParserConfig } from "./parser.model";
 import { UserType } from "../model";
 import {
     EmptyShapeException,
+    FailedToUnifyTypeOfInterface,
     UnexpectedDeclarationTypeError,
 } from "./parser.errors";
 import { getInJavaDeclaration } from "./utils/getInJavaDeclaration";
@@ -40,6 +41,13 @@ export interface SimplifiedInterface {
         package: string | null;
     };
 }
+
+export type UnifyTypeOrInterfaceErrors =
+    | EmptyShapeException
+    | FailedToUnifyTypeOfInterface<
+          ParsingError | ToJavaSyntaxError | UnexpectedDeclarationTypeError
+      >;
+
 export const unifyTypeOrInterface = (
     node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration,
     type: ts.Type,
@@ -47,7 +55,7 @@ export const unifyTypeOrInterface = (
     checker: ts.TypeChecker
 ): ReaderEither<
     ParserConfig,
-    EmptyShapeException | ParsingError | ToJavaSyntaxError,
+    UnifyTypeOrInterfaceErrors,
     SimplifiedInterface
 > => (config) => {
     const fields: SimplifiedInterface["fields"] = [];
@@ -78,7 +86,13 @@ export const unifyTypeOrInterface = (
                     if (isRight(inJava.value)) {
                         userInput = inJava.value.right;
                     } else {
-                        return inJava.value;
+                        return left(
+                            new FailedToUnifyTypeOfInterface(
+                                node.name.escapedText.toString(),
+                                filePath,
+                                inJava.value.left
+                            )
+                        );
                     }
                 }
                 if (ts.isPropertySignature(declaration)) {
@@ -115,11 +129,13 @@ export const unifyTypeOrInterface = (
                 });
             } else {
                 return left(
-                    new UnexpectedDeclarationTypeError(
-                        symbol.name,
+                    new FailedToUnifyTypeOfInterface(
                         node.name.escapedText.toString(),
                         filePath,
-                        ts.SyntaxKind[declaration.kind]
+                        new UnexpectedDeclarationTypeError(
+                            symbol.name,
+                            ts.SyntaxKind[declaration.kind]
+                        )
                     )
                 );
             }
@@ -146,7 +162,15 @@ export const unifyTypeOrInterface = (
                           name: overrides.name,
                           package: overrides.package,
                       },
-            }))
+            })),
+            mapLeft(
+                (e) =>
+                    new FailedToUnifyTypeOfInterface(
+                        node.name.escapedText.toString(),
+                        filePath,
+                        e
+                    )
+            )
         );
     }
 
