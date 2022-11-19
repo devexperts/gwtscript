@@ -6,6 +6,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import { Either, left, right } from "fp-ts/lib/Either";
+
 import { UserType } from "../model";
 import { ParserConfig } from "../parser/parser.model";
 
