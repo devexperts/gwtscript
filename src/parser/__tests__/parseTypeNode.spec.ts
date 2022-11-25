@@ -1,4 +1,5 @@
 import { left, right } from "fp-ts/lib/Either";
+import { pipe } from "fp-ts/lib/function";
 
 import {
     ArrayType,
@@ -136,12 +137,15 @@ describe("parseTypeNode()", () => {
     ])("table tests", (arg, result) => {
         test("correct type detection", () => {
             expect(
-                parseTypeNode(
-                    arg.type,
-                    host.checker,
-                    host.checker.getTypeAtLocation(arg.type),
-                    testConfig
-                )({ fieldName: "", location: "", typeName: "" })
+                pipe(
+                    testConfig,
+                    parseTypeNode(
+                        arg.type,
+                        host.checker,
+                        host.checker.getTypeAtLocation(arg.type),
+                        { fieldName: "", location: "", typeName: "" }
+                    )
+                )
             ).toEqual(result);
         });
     });
@@ -166,15 +170,20 @@ describe("parseTypeNode()", () => {
         });
 
         expect(
-            parseTypeNode(
-                refHost.getNode("refs").type,
-                refHost.checker,
-                refHost.checker.getTypeAtLocation(refHost.getNode("refs").type),
+            pipe(
                 {
                     ...testConfig,
                     nativeReferences: ["Observable", "Event"],
-                }
-            )({ fieldName: "", location: "", typeName: "" })
+                },
+                parseTypeNode(
+                    refHost.getNode("refs").type,
+                    refHost.checker,
+                    refHost.checker.getTypeAtLocation(
+                        refHost.getNode("refs").type
+                    ),
+                    { fieldName: "", location: "", typeName: "" }
+                )
+            )
         ).toEqual(
             right(
                 new ObjectType([

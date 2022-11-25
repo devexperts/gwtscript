@@ -18,7 +18,6 @@ export const defaultFieldPredicate = (reg: RegExp) => (
         getComments(node),
         map((lines) => {
             let isIgnored = false;
-
             for (const line of lines) {
                 if (line.search(reg) !== -1) {
                     isIgnored = true;

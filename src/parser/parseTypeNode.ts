@@ -77,8 +77,8 @@ export const parseTypeNode = (
     node: ts.TypeNode | ts.TypeElement,
     checker: ts.TypeChecker,
     type: ts.Type,
-    config: ParserConfig
-): ReaderEither<ParseTypeNode, ParseTypeNodeError, ParsedType> => (env) => {
+    env: ParseTypeNode
+): ReaderEither<ParserConfig, ParseTypeNodeError, ParsedType> => (config) => {
     // Primitive detection
     switch (node.kind) {
         case ts.SyntaxKind.NumberKeyword:
@@ -119,13 +119,13 @@ export const parseTypeNode = (
                 : node;
 
         return pipe(
-            env,
+            config,
             combineReaderEithers(
                 parseTypeNode(
                     func.type,
                     checker,
                     signature.getReturnType(),
-                    config
+                    env
                 ),
                 sequenceReaderEither(
                     func.parameters.map((param, i) => {
@@ -137,7 +137,7 @@ export const parseTypeNode = (
                                 checker.getTypeAtLocation(
                                     parameterSymbol.valueDeclaration
                                 ),
-                                config
+                                env
                             ),
                             map((type) => ({
                                 type,
@@ -185,14 +185,14 @@ export const parseTypeNode = (
             : null;
         if (identifier && config.nativeReferences.includes(identifier)) {
             return pipe(
-                env,
+                config,
                 sequenceReaderEither(
                     node.typeArguments?.map((item) => {
                         return parseTypeNode(
                             item,
                             checker,
                             checker.getTypeFromTypeNode(item),
-                            config
+                            env
                         );
                     }) ?? []
                 ),
@@ -218,7 +218,7 @@ export const parseTypeNode = (
         // if reference type is a shape and an interface
         if (type.symbol) {
             return pipe(
-                env,
+                config,
                 sequenceReaderEither(
                     type.getProperties().map((symbol) => {
                         const first = symbol.declarations[0];
@@ -228,7 +228,7 @@ export const parseTypeNode = (
                                     first.type,
                                     checker,
                                     checker.getTypeFromTypeNode(first.type),
-                                    config
+                                    env
                                 ),
                                 map((parsed) => ({
                                     name: symbol.name,
@@ -243,7 +243,7 @@ export const parseTypeNode = (
                                         first.type,
                                         checker,
                                         checker.getTypeAtLocation(first.type),
-                                        config
+                                        env
                                     ),
                                     sequenceReaderEither(
                                         first.parameters.map((param) => {
@@ -254,7 +254,7 @@ export const parseTypeNode = (
                                                     checker.getTypeAtLocation(
                                                         param.type
                                                     ),
-                                                    config
+                                                    env
                                                 ),
                                                 map((type) => ({
                                                     type,
@@ -353,12 +353,12 @@ export const parseTypeNode = (
 
                     if (ts.isPropertySignature(type)) {
                         return pipe(
-                            env,
+                            config,
                             parseTypeNode(
                                 type.type,
                                 checker,
                                 checker.getTypeAtLocation(type.type),
-                                config
+                                env
                             ),
                             mapEither((type) => ({
                                 type,
@@ -409,12 +409,12 @@ export const parseTypeNode = (
 
     if (ts.isArrayTypeNode(node)) {
         return pipe(
-            env,
+            config,
             parseTypeNode(
                 node.elementType,
                 checker,
                 checker.getTypeFromTypeNode(node.elementType),
-                config
+                env
             ),
             mapEither((value) => new ArrayType(value))
         );
@@ -422,10 +422,10 @@ export const parseTypeNode = (
 
     if (ts.isUnionTypeNode(node) && type.isUnion()) {
         return pipe(
-            env,
+            config,
             sequenceReaderEither(
                 node.types.map((typePart, i) =>
-                    parseTypeNode(typePart, checker, type.types[i], config)
+                    parseTypeNode(typePart, checker, type.types[i], env)
                 )
             ),
             mapEither((types) => new UnionType(types)),
@@ -443,23 +443,23 @@ export const parseTypeNode = (
 
     if (ts.isParenthesizedTypeNode(node)) {
         return pipe(
-            env,
+            config,
             parseTypeNode(
                 node.type,
                 checker,
                 checker.getTypeFromTypeNode(node.type),
-                config
+                env
             )
         );
     }
 
     if (ts.isIntersectionTypeNode(node) && type.isIntersection()) {
         return pipe(
-            env,
+            config,
             sequenceReaderEither(
                 node.types.map((item, i) => {
                     return pipe(
-                        parseTypeNode(item, checker, type.types[i], config)
+                        parseTypeNode(item, checker, type.types[i], env)
                     );
                 })
             ),
