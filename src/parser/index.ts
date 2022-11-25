@@ -11,6 +11,7 @@ import { flow, pipe } from "fp-ts/lib/function";
 
 import { parseToJavaString } from "@root/utils/parseToJavaString";
 import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
+import { parseInJavaString, ParsingError } from "@root/utils/parseInJavaString";
 
 import { checkMarkingDirective } from "./checkMarkingDirective";
 import { getFields } from "./getFields";
@@ -30,7 +31,7 @@ export class ParserError extends Error {
     constructor(
         public errors:
             | FailedToCheckMarkingDirective[]
-            | FailedToParseFields[]
+            | FailedToParseFields<ParsingError>[]
             | CannotFindConfigError
             | TSCompilerError
     ) {
@@ -88,7 +89,7 @@ export const parse = (): ReaderEither.ReaderEither<
                     Array.map((node) =>
                         pipe(
                             node.node,
-                            getFields(checker),
+                            getFields(checker, parseInJavaString),
                             ReaderEither.chainW(
                                 flow(
                                     Array.map(

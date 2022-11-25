@@ -10,7 +10,7 @@ import * as ts from "typescript";
 import { ToJavaSyntaxError } from "@root/utils/parseToJavaString";
 
 import { NoCommentLines } from "./checkMarkingDirective";
-import { NotAnObjectException } from "./getFields";
+import { FailedToParseUserDirective, NotAnObjectException } from "./getFields";
 import { FailedToParseField } from "./toTypedField";
 
 export class CannotFindConfigError extends Error {
@@ -242,11 +242,16 @@ export class FailedToCheckMarkingDirective extends Error {
     }
 }
 
-export class FailedToParseFields extends Error {
+export class FailedToParseFields<
+    ParserFunctionError extends Error
+> extends Error {
     constructor(
         public typeName: string,
         public path: string,
-        public errors: NotAnObjectException | FailedToParseField[]
+        public errors:
+            | NotAnObjectException
+            | FailedToParseField[]
+            | FailedToParseUserDirective<ParserFunctionError>[]
     ) {
         super(
             `Failed to parse fields on type "${typeName}" located in "${path}"`

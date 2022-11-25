@@ -25,6 +25,7 @@ import { printTypeToStringError } from "./utils/printTypeToStringError";
 import { CompilerConfig, ParserOutput, UserParserConfig } from "./model";
 import { isCompilerConfig } from "./utils/guards/isCompilerConfig";
 import { FailedToCheckMarkingDirective } from "./parser/parser.errors";
+import { FailedToParseField } from "./parser/toTypedField";
 
 type BasicCompilerArguments = [CompilerConfig];
 type WithUserGeneratorArguments = [
@@ -107,14 +108,34 @@ export function compile(
                                 console.group();
                                 if (error.errors instanceof Array) {
                                     for (const parsingError of error.errors) {
-                                        console.log(
-                                            chalk.bold.red(parsingError.message)
-                                        );
-                                        console.group();
-                                        printParseTypeNodeError(
-                                            parsingError.error
-                                        );
-                                        console.groupEnd();
+                                        if (
+                                            parsingError instanceof
+                                            FailedToParseField
+                                        ) {
+                                            console.log(
+                                                chalk.bold.red(
+                                                    parsingError.message
+                                                )
+                                            );
+                                            console.group();
+                                            printParseTypeNodeError(
+                                                parsingError.error
+                                            );
+                                            console.groupEnd();
+                                        } else {
+                                            console.log(
+                                                chalk.bold.red(
+                                                    parsingError.message
+                                                )
+                                            );
+                                            console.group();
+                                            console.log(
+                                                chalk.bold.red(
+                                                    parsingError.error.message
+                                                )
+                                            );
+                                            console.groupEnd();
+                                        }
                                     }
                                 } else {
                                     console.log(
@@ -123,6 +144,7 @@ export function compile(
                                 }
                                 console.groupEnd();
                             }
+                            console.log();
                         }
                     } else {
                         console.log(chalk.bgRed.black(e.errors.message));

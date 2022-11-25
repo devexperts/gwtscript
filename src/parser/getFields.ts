@@ -9,11 +9,14 @@ import * as ts from "typescript";
 import * as ReaderEither from "fp-ts/lib/ReaderEither";
 import * as array from "fp-ts/lib/array";
 import * as Option from "fp-ts/lib/Option";
+import * as Either from "fp-ts/lib/Either";
 import { pipe, flow } from "fp-ts/lib/function";
 
 import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
 import { chalk } from "@root/utils/chalk";
 import { UserType } from "@root/model";
+import { getComments } from "@root/utils/getComments";
+import { sequenceEither } from "@root/utils/fp-ts/sequenceEither";
 
 import { ParserConfig } from "./parser.model";
 
@@ -30,9 +33,31 @@ export class NotAnObjectException extends Error {
     }
 }
 
-export const getFields = (checker: ts.TypeChecker) => (
+export class FailedToParseUserDirective<E extends Error> extends Error {
+    constructor(public fieldName: string, public error: E) {
+        super(`Failed to parse user input directive on field "${fieldName}"`);
+        Object.setPrototypeOf(this, FailedToParseUserDirective.prototype);
+    }
+}
+
+export type AcceptableFieldType =
+    | ts.PropertySignature
+    | ts.MethodSignature
+    | ts.PropertyAssignment
+    | ts.MethodDeclaration;
+
+export const getFields = <ParserFunctionError extends Error>(
+    checker: ts.TypeChecker,
+    parseUserType: (
+        userDirectiveRegExp: RegExp
+    ) => (comment: string) => Either.Either<ParserFunctionError, UserType>
+) => (
     node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration
-): ReaderEither.ReaderEither<ParserConfig, NotAnObjectException, Field[]> =>
+): ReaderEither.ReaderEither<
+    ParserConfig,
+    FailedToParseUserDirective<ParserFunctionError>[] | NotAnObjectException,
+    Field[]
+> =>
     pipe(
         ReaderEither.Do,
         ReaderEither.bind("config", () => ReaderEither.ask<ParserConfig>()),
@@ -49,15 +74,18 @@ export const getFields = (checker: ts.TypeChecker) => (
             ts.isTypeAliasDeclaration(node) &&
             ts.isIntersectionTypeNode(node.type)
                 ? pipe(
-                      sequenceReaderEither(
-                          node.type.types.map((t) =>
-                              getFields(checker)(
-                                  (t as any) as
-                                      | ts.TypeAliasDeclaration
-                                      | ts.InterfaceDeclaration
-                              )
+                      Array.from(node.type.types),
+                      array.map((t) =>
+                          getFields(
+                              checker,
+                              parseUserType
+                          )(
+                              (t as unknown) as
+                                  | ts.TypeAliasDeclaration
+                                  | ts.InterfaceDeclaration
                           )
                       ),
+                      sequenceReaderEither,
                       ReaderEither.map((items) => items.flatMap((a) => a)),
                       ReaderEither.mapLeft((errors) => errors[0])
                   )
@@ -73,11 +101,7 @@ export const getFields = (checker: ts.TypeChecker) => (
                                       Option.filter(
                                           (
                                               declaration
-                                          ): declaration is
-                                              | ts.PropertySignature
-                                              | ts.MethodSignature
-                                              | ts.PropertyAssignment
-                                              | ts.MethodDeclaration =>
+                                          ): declaration is AcceptableFieldType =>
                                               ts.isPropertySignature(
                                                   declaration
                                               ) ||
@@ -113,26 +137,66 @@ export const getFields = (checker: ts.TypeChecker) => (
                                       !config.ignoreField ||
                                       !config.ignoreField(declaration)
                               ),
-                              Option.map(({ name, declaration }) =>
+                              Option.let("userInput", ({ declaration }) => {
+                                  return pipe(
+                                      getComments(declaration),
+                                      Option.chain(
+                                          array.findFirst((line) =>
+                                              config.inJavaRegExpTest.test(line)
+                                          )
+                                      ),
+                                      Option.map(
+                                          parseUserType(config.inJavaRegExpTest)
+                                      )
+                                  );
+                              }),
+                              Option.let("node", ({ declaration }) =>
                                   ts.isPropertySignature(declaration)
-                                      ? {
-                                            name,
-                                            node: declaration.type,
-                                        }
-                                      : {
-                                            name,
-                                            node: checker.typeToTypeNode(
-                                                checker.getTypeAtLocation(
-                                                    declaration
-                                                ),
-                                                undefined,
-                                                undefined
+                                      ? declaration.type
+                                      : checker.typeToTypeNode(
+                                            checker.getTypeAtLocation(
+                                                declaration
                                             ),
-                                        }
+                                            undefined,
+                                            undefined
+                                        )
+                              ),
+                              Option.map(
+                                  ({
+                                      userInput,
+                                      node,
+                                      name,
+                                  }): Either.Either<
+                                      FailedToParseUserDirective<ParserFunctionError>,
+                                      Field
+                                  > => {
+                                      return pipe(
+                                          userInput,
+                                          Option.fold(
+                                              () =>
+                                                  Either.right({ node, name }),
+                                              flow(
+                                                  Either.bimap(
+                                                      (e) =>
+                                                          new FailedToParseUserDirective(
+                                                              name,
+                                                              e
+                                                          ),
+                                                      (userInput) => ({
+                                                          node,
+                                                          name,
+                                                          userInput,
+                                                      })
+                                                  )
+                                              )
+                                          )
+                                      );
+                                  }
                               )
                           )
                       ),
-                      ReaderEither.right
+                      sequenceEither,
+                      ReaderEither.fromEither
                   )
         )
     );

@@ -136,6 +136,12 @@ describe("getFields()", () => {
                     a: number
                 }
             `,
+            userInputType: td`
+                type UserInputType = {
+                    // @InJava
+                    a: number
+                }
+            `,
         },
     });
 
@@ -157,7 +163,9 @@ describe("getFields()", () => {
     ])("getFields(%s): %p", (key, result) => {
         const statement = host.getNode(key);
 
-        const fields = getFields(host.checker)(statement);
+        const fields = getFields(host.checker, () => () =>
+            Either.left(new Error("error"))
+        )(statement);
 
         expect(
             pipe(
@@ -172,9 +180,40 @@ describe("getFields()", () => {
         "getFields(%s): NotAnObjectException",
         (key) => {
             const statement = host.getNode(key);
-            const fields = getFields(host.checker)(statement)(testConfig);
+            const fields = getFields(host.checker, () => () =>
+                Either.left(new Error("error"))
+            )(statement)(testConfig);
 
             expect(fields).toEqual(Either.left(new NotAnObjectException()));
         }
     );
+
+    it("handles user input type", () => {
+        const statement = host.getNode("userInputType");
+        const fields = getFields(host.checker, () => () =>
+            Either.right({
+                identifier: "hard-coded-type",
+                type: {
+                    imports: ["imports"],
+                    text: "kek",
+                },
+            })
+        )(statement)(testConfig);
+
+        expect(fields).toEqual(
+            Either.right([
+                {
+                    name: "a",
+                    node: expect.anything(),
+                    userInput: {
+                        identifier: "hard-coded-type",
+                        type: {
+                            imports: ["imports"],
+                            text: "kek",
+                        },
+                    },
+                },
+            ])
+        );
+    });
 });
