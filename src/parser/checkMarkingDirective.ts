@@ -61,7 +61,7 @@ export const checkMarkingDirective = <
                   })
                 : pipe(
                       getComments(node),
-                      Option.chain((line) => Array.last(line)),
+                      Option.chain(Array.last),
                       ReaderEither.fromOption(() => new NoCommentLines()),
                       ReaderEither.chain(
                           flow(

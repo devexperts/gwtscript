@@ -48,6 +48,7 @@ export const parse = (): ReaderEither.ReaderEither<
     pipe(
         ReaderEither.Do,
         ReaderEither.bind("config", () => ReaderEither.ask<ParserConfig>()),
+        // Create program
         ReaderEither.bindW(
             "program",
             flow(
@@ -56,10 +57,13 @@ export const parse = (): ReaderEither.ReaderEither<
                 ReaderEither.fromEither
             )
         ),
+        // Get program type checker
         ReaderEither.let("checker", ({ program }) => program.getTypeChecker()),
+        // Get nodes to transpile
         ReaderEither.let("nodes", ({ program, config }) =>
             pipe(config, getNodes(program))
         ),
+        // Check marking directive on nodes if presented
         ReaderEither.bindW(
             "checked",
             flow(
@@ -81,42 +85,41 @@ export const parse = (): ReaderEither.ReaderEither<
                 sequenceReaderEither
             )
         ),
-        ReaderEither.bindW(
-            "fields",
-            flow(({ nodes, checker }) =>
-                pipe(
-                    nodes,
-                    Array.map((node) =>
-                        pipe(
-                            node.node,
-                            checker.getTypeAtLocation,
-                            getFields(checker, parseInJavaString),
-                            ReaderEither.chainW(
-                                flow(
-                                    Array.map(
-                                        toTypedField(
-                                            node.name,
-                                            node.filePath,
-                                            checker
-                                        )
-                                    ),
-                                    sequenceReaderEither
-                                )
-                            ),
-                            ReaderEither.mapLeft(
-                                (e) =>
-                                    new FailedToParseFields(
+        // Parse type fields
+        ReaderEither.bindW("fields", ({ nodes, checker }) =>
+            pipe(
+                nodes,
+                Array.map((node) =>
+                    pipe(
+                        node.node,
+                        checker.getTypeAtLocation,
+                        getFields(checker, parseInJavaString),
+                        ReaderEither.chainW(
+                            flow(
+                                Array.map(
+                                    toTypedField(
                                         node.name,
                                         node.filePath,
-                                        e
+                                        checker
                                     )
+                                ),
+                                sequenceReaderEither
                             )
+                        ),
+                        ReaderEither.mapLeft(
+                            (e) =>
+                                new FailedToParseFields(
+                                    node.name,
+                                    node.filePath,
+                                    e
+                                )
                         )
-                    ),
-                    sequenceReaderEither
-                )
+                    )
+                ),
+                sequenceReaderEither
             )
         ),
+        // Compose the result
         ReaderEither.bind("typesToGenerate", ({ fields, checked, nodes }) =>
             ReaderEither.right(
                 pipe(
