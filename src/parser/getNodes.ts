@@ -6,7 +6,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 import * as ts from "typescript";
-import { pipe } from "fp-ts/lib/function";
+import { flow, pipe } from "fp-ts/lib/function";
 import * as Reader from "fp-ts/lib/Reader";
 import * as array from "fp-ts/lib/Array";
 import * as Option from "fp-ts/lib/Option";
@@ -36,25 +36,38 @@ export const getNodes = (
             pipe(
                 program.getRootFileNames(),
                 array.filterMap((path) =>
-                    config.filePredicate && !config.filePredicate(path)
-                        ? Option.none
-                        : pipe(
-                              Array.from(
-                                  program.getSourceFile(path).statements
-                              ),
-                              array.filterMap((node) =>
-                                  (!ts.isTypeAliasDeclaration(node) &&
-                                      !ts.isInterfaceDeclaration(node)) ||
-                                  !config.interfacePredicate(node)
-                                      ? Option.none
-                                      : Option.some({
-                                            node,
-                                            filePath: path,
-                                            name: node.name.escapedText.toString(),
-                                        })
-                              ),
-                              Option.some
-                          )
+                    pipe(
+                        Option.fromNullable(
+                            !config.filePredicate
+                                ? path
+                                : config.filePredicate(path)
+                                ? path
+                                : null
+                        ),
+                        Option.map((path) =>
+                            Array.from(program.getSourceFile(path).statements)
+                        ),
+                        Option.map(
+                            flow(
+                                array.filterMap((statement) =>
+                                    Option.fromNullable(
+                                        (ts.isTypeAliasDeclaration(statement) ||
+                                            ts.isInterfaceDeclaration(
+                                                statement
+                                            )) &&
+                                            config.interfacePredicate(statement)
+                                            ? statement
+                                            : null
+                                    )
+                                ),
+                                array.map((node) => ({
+                                    node,
+                                    filePath: path,
+                                    name: node.name.escapedText.toString(),
+                                }))
+                            )
+                        )
+                    )
                 ),
                 array.flatten
             )
