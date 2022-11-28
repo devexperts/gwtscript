@@ -165,7 +165,7 @@ describe("getFields()", () => {
 
         const fields = getFields(host.checker, () => () =>
             Either.left(new Error("error"))
-        )(statement);
+        )(host.checker.getTypeAtLocation(statement));
 
         expect(
             pipe(
@@ -182,7 +182,7 @@ describe("getFields()", () => {
             const statement = host.getNode(key);
             const fields = getFields(host.checker, () => () =>
                 Either.left(new Error("error"))
-            )(statement)(testConfig);
+            )(host.checker.getTypeAtLocation(statement))(testConfig);
 
             expect(fields).toEqual(Either.left(new NotAnObjectException()));
         }
@@ -198,7 +198,7 @@ describe("getFields()", () => {
                     text: "kek",
                 },
             })
-        )(statement)(testConfig);
+        )(host.checker.getTypeAtLocation(statement))(testConfig);
 
         expect(fields).toEqual(
             Either.right([

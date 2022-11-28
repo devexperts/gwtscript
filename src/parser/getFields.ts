@@ -13,12 +13,12 @@ import * as Either from "fp-ts/lib/Either";
 import { pipe, flow } from "fp-ts/lib/function";
 
 import { sequenceReaderEither } from "@root/utils/fp-ts/sequenceReaderEither";
-import { chalk } from "@root/utils/chalk";
 import { UserType } from "@root/model";
 import { getComments } from "@root/utils/getComments";
 import { sequenceEither } from "@root/utils/fp-ts/sequenceEither";
 
 import { ParserConfig } from "./parser.model";
+import { declarationIsAcceptableFieldType } from "./utils/declarationIsAcceptableFieldType";
 
 export type Field = {
     name: string;
@@ -40,53 +40,33 @@ export class FailedToParseUserDirective<E extends Error> extends Error {
     }
 }
 
-export type AcceptableFieldType =
-    | ts.PropertySignature
-    | ts.MethodSignature
-    | ts.PropertyAssignment
-    | ts.MethodDeclaration;
-
 export const getFields = <ParserFunctionError extends Error>(
     checker: ts.TypeChecker,
     parseUserType: (
         userDirectiveRegExp: RegExp
     ) => (comment: string) => Either.Either<ParserFunctionError, UserType>
 ) => (
-    node: ts.TypeAliasDeclaration | ts.InterfaceDeclaration
+    objectType: ts.Type
 ): ReaderEither.ReaderEither<
     ParserConfig,
     FailedToParseUserDirective<ParserFunctionError>[] | NotAnObjectException,
     Field[]
-> =>
-    pipe(
+> => {
+    return pipe(
         ReaderEither.Do,
-        ReaderEither.bind("config", () => ReaderEither.ask<ParserConfig>()),
-        ReaderEither.let("nodeType", () => checker.getTypeAtLocation(node)),
-        ReaderEither.let("props", ({ nodeType }) => nodeType.getProperties()),
-        ReaderEither.filterOrElseW(
-            ({ nodeType }) =>
-                !!nodeType.symbol ||
-                (ts.isTypeAliasDeclaration(node) &&
-                    ts.isIntersectionTypeNode(node.type)),
+        ReaderEither.filterOrElse(
+            () => !!objectType.symbol || objectType.isIntersection(),
             () => new NotAnObjectException()
         ),
+        ReaderEither.bindW("config", () => ReaderEither.ask<ParserConfig>()),
+        ReaderEither.let("props", () => objectType.getProperties()),
         ReaderEither.chain(({ props, config }) =>
-            ts.isTypeAliasDeclaration(node) &&
-            ts.isIntersectionTypeNode(node.type)
+            objectType.isIntersection()
                 ? pipe(
-                      Array.from(node.type.types),
-                      array.map((t) =>
-                          getFields(
-                              checker,
-                              parseUserType
-                          )(
-                              (t as unknown) as
-                                  | ts.TypeAliasDeclaration
-                                  | ts.InterfaceDeclaration
-                          )
-                      ),
+                      objectType.types,
+                      array.map(getFields(checker, parseUserType)),
                       sequenceReaderEither,
-                      ReaderEither.map((items) => items.flatMap((a) => a)),
+                      ReaderEither.map(array.flatten),
                       ReaderEither.mapLeft((errors) => errors[0])
                   )
                 : pipe(
@@ -99,33 +79,7 @@ export const getFields = <ParserFunctionError extends Error>(
                                   flow(
                                       () => array.head(property.declarations),
                                       Option.filter(
-                                          (
-                                              declaration
-                                          ): declaration is AcceptableFieldType =>
-                                              ts.isPropertySignature(
-                                                  declaration
-                                              ) ||
-                                              ts.isMethodSignature(
-                                                  declaration
-                                              ) ||
-                                              ts.isPropertyAssignment(
-                                                  declaration
-                                              ) ||
-                                              ts.isMethodDeclaration(
-                                                  declaration
-                                              )
-                                                  ? true
-                                                  : (console.log(
-                                                        chalk.bgYellow.black(
-                                                            `Unknown field declaration type ${
-                                                                ts.ScriptKind[
-                                                                    declaration
-                                                                        .kind
-                                                                ]
-                                                            }`
-                                                        )
-                                                    ),
-                                                    false)
+                                          declarationIsAcceptableFieldType
                                       )
                                   )
                               ),
@@ -169,8 +123,8 @@ export const getFields = <ParserFunctionError extends Error>(
                                   }): Either.Either<
                                       FailedToParseUserDirective<ParserFunctionError>,
                                       Field
-                                  > => {
-                                      return pipe(
+                                  > =>
+                                      pipe(
                                           userInput,
                                           Option.fold(
                                               () =>
@@ -190,8 +144,7 @@ export const getFields = <ParserFunctionError extends Error>(
                                                   )
                                               )
                                           )
-                                      );
-                                  }
+                                      )
                               )
                           )
                       ),
@@ -200,3 +153,4 @@ export const getFields = <ParserFunctionError extends Error>(
                   )
         )
     );
+};

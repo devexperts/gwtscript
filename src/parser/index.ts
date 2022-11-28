@@ -89,6 +89,7 @@ export const parse = (): ReaderEither.ReaderEither<
                     Array.map((node) =>
                         pipe(
                             node.node,
+                            checker.getTypeAtLocation,
                             getFields(checker, parseInJavaString),
                             ReaderEither.chainW(
                                 flow(
