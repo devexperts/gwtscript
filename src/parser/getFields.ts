@@ -91,9 +91,11 @@ export const getFields = <ParserFunctionError extends Error>(
                                       !config.ignoreField ||
                                       !config.ignoreField(declaration)
                               ),
-                              Option.let("userInput", ({ declaration }) => {
-                                  return pipe(
-                                      getComments(declaration),
+                              Option.let(
+                                  "userInput",
+                                  flow(
+                                      ({ declaration }) => declaration,
+                                      getComments,
                                       Option.chain(
                                           array.findFirst((line) =>
                                               config.inJavaRegExpTest.test(line)
@@ -102,8 +104,8 @@ export const getFields = <ParserFunctionError extends Error>(
                                       Option.map(
                                           parseUserType(config.inJavaRegExpTest)
                                       )
-                                  );
-                              }),
+                                  )
+                              ),
                               Option.let("node", ({ declaration }) =>
                                   ts.isPropertySignature(declaration)
                                       ? declaration.type
