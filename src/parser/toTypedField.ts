@@ -29,23 +29,28 @@ export const toTypedField = (
 ) => (
     field: Field
 ): ReaderEither.ReaderEither<ParserConfig, FailedToParseField, TypeField> =>
-    pipe(
-        ReaderEither.ask<ParserConfig>(),
-        ReaderEither.chainW(() =>
-            parseTypeNode(
-                field.node,
-                checker,
-                checker.getTypeAtLocation(field.node),
-                {
-                    fieldName: field.name,
-                    location,
-                    typeName,
-                }
-            )
-        ),
-        ReaderEither.map((type) => ({
-            type,
-            name: field.name,
-        })),
-        ReaderEither.mapLeft((e) => new FailedToParseField(field.name, e))
-    );
+    field.userInput
+        ? ReaderEither.right({
+              name: field.name,
+              type: field.userInput,
+          })
+        : pipe(
+              ReaderEither.ask<ParserConfig>(),
+              ReaderEither.chainW(() =>
+                  parseTypeNode(
+                      field.node,
+                      checker,
+                      checker.getTypeAtLocation(field.node),
+                      {
+                          fieldName: field.name,
+                          location,
+                          typeName,
+                      }
+                  )
+              ),
+              ReaderEither.map((type) => ({
+                  type,
+                  name: field.name,
+              })),
+              ReaderEither.mapLeft((e) => new FailedToParseField(field.name, e))
+          );
