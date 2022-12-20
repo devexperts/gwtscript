@@ -1,4 +1,5 @@
 import * as ts from "typescript";
+
 import { Ast } from "./tags";
 
 export type TestHostConfig<
@@ -43,7 +44,13 @@ export class TestHost<
             writeFile: () => "",
         };
 
-        const program = ts.createProgram(Object.keys(tempoMap), {}, host);
+        const program = ts.createProgram(
+            Object.keys(tempoMap),
+            {
+                isolatedModules: true,
+            },
+            host
+        );
 
         const errors = program.getDeclarationDiagnostics();
         if (errors.length > 0) {

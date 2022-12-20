@@ -7,7 +7,9 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import {
     InterfaceDeclaration,
+    MethodDeclaration,
     MethodSignature,
+    PropertyAssignment,
     PropertySignature,
     TypeAliasDeclaration,
 } from "typescript";
@@ -19,7 +21,13 @@ export interface ParserConfig {
     ) => boolean;
     filePredicate?: (fileName: string) => boolean;
     tsconfigAbsolutePath: string;
-    ignoreField?: (field: PropertySignature | MethodSignature) => boolean;
+    ignoreField?: (
+        field:
+            | PropertySignature
+            | MethodSignature
+            | PropertyAssignment
+            | MethodDeclaration
+    ) => boolean;
     nativeReferences: string[];
     inJavaRegExpTest: RegExp;
     logs?: boolean;

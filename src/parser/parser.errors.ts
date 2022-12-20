@@ -5,7 +5,13 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import ts from "typescript";
+import * as ts from "typescript";
+
+import { ToJavaSyntaxError } from "@root/utils/parseToJavaString";
+
+import { NoCommentLines } from "./checkMarkingDirective";
+import { FailedToParseUserDirective, NotAnObjectException } from "./getFields";
+import { FailedToParseField } from "./toTypedField";
 
 export class CannotFindConfigError extends Error {
     constructor(path: string) {
@@ -19,13 +25,6 @@ export class TSCompilerError extends Error {
         super(`TS compiler errors:
 ${message}`);
         Object.setPrototypeOf(this, TSCompilerError.prototype);
-    }
-}
-
-export class EmptyShapeException extends Error {
-    constructor(public typeName: string, public path: string) {
-        super(`Type ${typeName} (located: "${path}") is empty`);
-        Object.setPrototypeOf(this, EmptyShapeException.prototype);
     }
 }
 
@@ -230,49 +229,33 @@ export class FailedToParseIntersectionError<
         Object.setPrototypeOf(this, FailedToParseIntersectionError.prototype);
     }
 }
-
-export class FailedToParseInterfaceFieldError<ErrorType = Error> extends Error {
-    constructor(
-        public typeName: string,
-        public fieldName: string,
-        public path: string,
-        public error: ErrorType
-    ) {
-        super(`Failed to parse interface field "${fieldName}"`);
-        Object.setPrototypeOf(this, FailedToParseInterfaceFieldError.prototype);
-    }
-}
-
-export class FailedToParseInterface<ErrorType = Error> extends Error {
+export class FailedToCheckMarkingDirective extends Error {
     constructor(
         public typeName: string,
         public path: string,
-        public errors: FailedToParseInterfaceFieldError<ErrorType>[]
+        public error: ToJavaSyntaxError | NoCommentLines
     ) {
-        super(`Failed to parse interface`);
-        Object.setPrototypeOf(this, FailedToParseInterface.prototype);
-    }
-}
-
-export class FailedToUnifyTypeOfInterface<E extends Error> extends Error {
-    constructor(public typeName: string, public path: string, public error: E) {
-        super(`Failed to unify type "${typeName}". File path: "${path}"`);
-        Object.setPrototypeOf(this, FailedToUnifyTypeOfInterface.prototype);
-    }
-}
-
-export class MapSimplifiedInterfacesError<ErrorType = Error> extends Error {
-    constructor(public errors: ErrorType[]) {
-        super(`Failed to parse some interfaces`);
-        Object.setPrototypeOf(this, MapSimplifiedInterfacesError.prototype);
-    }
-}
-
-export class UnexpectedDeclarationTypeError extends Error {
-    constructor(public fieldName: string, public declarationType: string) {
         super(
-            `Field "${fieldName}" has unexpected declaration type "${declarationType}"`
+            `Failed to check marking directive for type "${typeName}" located in "${path}"`
         );
-        Object.setPrototypeOf(this, UnexpectedDeclarationTypeError.prototype);
+        Object.setPrototypeOf(this, FailedToCheckMarkingDirective.prototype);
+    }
+}
+
+export class FailedToParseFields<
+    ParserFunctionError extends Error
+> extends Error {
+    constructor(
+        public typeName: string,
+        public path: string,
+        public errors:
+            | NotAnObjectException
+            | FailedToParseField[]
+            | FailedToParseUserDirective<ParserFunctionError>[]
+    ) {
+        super(
+            `Failed to parse fields on type "${typeName}" located in "${path}"`
+        );
+        Object.setPrototypeOf(this, FailedToParseFields.prototype);
     }
 }

@@ -1,20 +1,13 @@
 import { isLeft, isRight } from "fp-ts/lib/Either";
+
 import { UserType } from "../../model";
-import { ParserConfig } from "../../parser/parser.model";
 import { parseInJavaString } from "../parseInJavaString";
 
 describe("parseInJavaString()", () => {
-    const conf: ParserConfig = {
-        inJavaRegExpTest: /@InJava/,
-        interfacePredicate: () => true,
-        nativeReferences: [],
-        tsconfigAbsolutePath: "",
-    };
+    const testFunction = parseInJavaString(/@InJava/);
+
     it("works in common case", () => {
-        const result = parseInJavaString(
-            "// @InJava String from nothing",
-            conf
-        );
+        const result = testFunction("// @InJava String from nothing");
         const right = isRight(result);
         expect(right).toBe(true);
 
@@ -28,10 +21,7 @@ describe("parseInJavaString()", () => {
         }
     });
     it("works in cases with generic arguments", () => {
-        const result = parseInJavaString(
-            "// @InJava A<B, C> from nothing",
-            conf
-        );
+        const result = testFunction("// @InJava A<B, C> from nothing");
         const right = isRight(result);
         expect(right).toBe(true);
 
@@ -45,10 +35,7 @@ describe("parseInJavaString()", () => {
         }
     });
     it("works with several imports", () => {
-        const result = parseInJavaString(
-            "// @InJava String from nothing, nothing2",
-            conf
-        );
+        const result = testFunction("// @InJava String from nothing, nothing2");
         const right = isRight(result);
         expect(right).toBe(true);
 
@@ -62,7 +49,7 @@ describe("parseInJavaString()", () => {
         }
     });
     it("works with zero-imports", () => {
-        const result = parseInJavaString("// @InJava String", conf);
+        const result = testFunction("// @InJava String");
         const right = isRight(result);
         expect(right).toBe(true);
 
@@ -76,9 +63,8 @@ describe("parseInJavaString()", () => {
         }
     });
     it("works in odd case", () => {
-        const result = parseInJavaString(
-            "//    @InJava     String       from        nothing,        nothing2",
-            conf
+        const result = testFunction(
+            "//    @InJava     String       from        nothing,        nothing2"
         );
         const right = isRight(result);
         expect(right).toBe(true);
@@ -94,15 +80,11 @@ describe("parseInJavaString()", () => {
     });
 
     it("throws errors", () => {
-        expect(isLeft(parseInJavaString("// @InJava String from", conf))).toBe(
+        expect(isLeft(testFunction("// @InJava String from"))).toBe(true);
+        expect(isLeft(testFunction("// @InJava Str ing from nothing"))).toBe(
             true
         );
-        expect(
-            isLeft(parseInJavaString("// @InJava Str ing from nothing", conf))
-        ).toBe(true);
-        expect(isLeft(parseInJavaString("// @InJava Str ing", conf))).toBe(
-            true
-        );
-        expect(isLeft(parseInJavaString("// @InJava", conf))).toBe(true);
+        expect(isLeft(testFunction("// @InJava Str ing"))).toBe(true);
+        expect(isLeft(testFunction("// @InJava"))).toBe(true);
     });
 });

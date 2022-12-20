@@ -18,16 +18,14 @@ import {
     defaultInterfacePredicate,
     defaultFieldPredicate,
 } from "./utils/defaultPredicates";
-import {
-    FailedToUnifyTypeOfInterface,
-    MapSimplifiedInterfacesError,
-} from "./parser/parser.errors";
 import { chalk } from "./utils/chalk";
 import { printParseTypeNodeError } from "./utils/printParseTypeNodeError";
 import { CannotGenerateTypesError } from "./generator/generator.errors";
 import { printTypeToStringError } from "./utils/printTypeToStringError";
 import { CompilerConfig, ParserOutput, UserParserConfig } from "./model";
 import { isCompilerConfig } from "./utils/guards/isCompilerConfig";
+import { FailedToCheckMarkingDirective } from "./parser/parser.errors";
+import { FailedToParseField } from "./parser/toTypedField";
 
 type BasicCompilerArguments = [CompilerConfig];
 type WithUserGeneratorArguments = [
@@ -91,24 +89,67 @@ export function compile(
         chainW((value) => generate(value)(generatorConfig)),
         fold(
             (e) => {
-                if (e instanceof MapSimplifiedInterfacesError) {
+                if (e instanceof ParserError) {
                     console.log(chalk.bgRed.black(e.message));
-                    for (const error of e.errors) {
-                        console.group();
-                        console.log(chalk.bold.red(error.message));
-
-                        console.group();
-                        for (const fieldError of error.errors) {
-                            console.log(
-                                chalk.bold.red(fieldError.fieldName + ":")
-                            );
-                            console.group();
-                            printParseTypeNodeError(fieldError.error);
-                            console.groupEnd();
+                    console.group();
+                    if (e.errors instanceof Array) {
+                        for (const error of e.errors) {
+                            if (
+                                error instanceof FailedToCheckMarkingDirective
+                            ) {
+                                console.log(chalk.bold.red(error.message));
+                                console.group();
+                                console.log(
+                                    chalk.bold.red(error.error.message)
+                                );
+                                console.groupEnd();
+                            } else {
+                                console.log(chalk.bold.red(error.message));
+                                console.group();
+                                if (error.errors instanceof Array) {
+                                    for (const parsingError of error.errors) {
+                                        if (
+                                            parsingError instanceof
+                                            FailedToParseField
+                                        ) {
+                                            console.log(
+                                                chalk.bold.red(
+                                                    parsingError.message
+                                                )
+                                            );
+                                            console.group();
+                                            printParseTypeNodeError(
+                                                parsingError.error
+                                            );
+                                            console.groupEnd();
+                                        } else {
+                                            console.log(
+                                                chalk.bold.red(
+                                                    parsingError.message
+                                                )
+                                            );
+                                            console.group();
+                                            console.log(
+                                                chalk.bold.red(
+                                                    parsingError.error.message
+                                                )
+                                            );
+                                            console.groupEnd();
+                                        }
+                                    }
+                                } else {
+                                    console.log(
+                                        chalk.bold.red(error.errors.message)
+                                    );
+                                }
+                                console.groupEnd();
+                            }
+                            console.log();
                         }
-                        console.groupEnd();
-                        console.groupEnd();
+                    } else {
+                        console.log(chalk.bgRed.black(e.errors.message));
                     }
+                    console.groupEnd();
                 } else if (e instanceof CannotGenerateTypesError) {
                     console.log(chalk.bold.red(e.message));
                     console.group();
@@ -124,15 +165,6 @@ export function compile(
                         console.groupEnd();
                     }
                     console.groupEnd();
-                } else if (e instanceof FailedToUnifyTypeOfInterface) {
-                    console.log(chalk.bold.red(e.message));
-                    console.group();
-                    console.log(chalk.bold.red(e.error.message));
-                    console.groupEnd();
-                } else {
-                    console.log(
-                        chalk.bold.red(`${e.constructor.name}: ${e.message}`)
-                    );
                 }
                 process.exit(1);
             },

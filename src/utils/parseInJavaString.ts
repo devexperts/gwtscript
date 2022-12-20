@@ -8,12 +8,11 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 import { Either, left, right } from "fp-ts/lib/Either";
 
 import { UserType } from "../model";
-import { ParserConfig } from "../parser/parser.model";
 
 export class ParsingError extends Error {
     constructor(public stringToParse: string) {
         super(
-            "Failed to parse InJava comment. Example: @InJava {InjavaType} from {import1}, {import2}, {import3}"
+            "Failed to parse InJava comment. Example: @InJava {InJavaType} from {import1}, {import2}, {import3}"
         );
     }
     static _create<T>(str: string): Either<ParsingError, T> {
@@ -21,11 +20,10 @@ export class ParsingError extends Error {
     }
 }
 
-export const parseInJavaString = (
-    str: string,
-    config: ParserConfig
+export const parseInJavaString = (directiveRegExp: RegExp) => (
+    str: string
 ): Either<ParsingError, UserType> => {
-    const start = str.match(config.inJavaRegExpTest);
+    const start = str.match(directiveRegExp);
     const short = str.slice(start.index + start[0].length).trim();
     if (short.length === 0) return ParsingError._create(str);
 
