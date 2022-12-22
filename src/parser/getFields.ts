@@ -7,7 +7,7 @@ file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as ts from "typescript";
 import * as ReaderEither from "fp-ts/lib/ReaderEither";
-import * as array from "fp-ts/lib/array";
+import * as array from "fp-ts/lib/Array";
 import * as Option from "fp-ts/lib/Option";
 import * as Either from "fp-ts/lib/Either";
 import { pipe, flow } from "fp-ts/lib/function";
