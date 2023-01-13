@@ -415,7 +415,6 @@ export const parseTypeNode = (
         );
     }
 
-    // You need to refactor this shit based on type.isUnion() and type, coz somehow typePart has type of Reference, but typePart's type is Union xDxDxD
     if (ts.isUnionTypeNode(node)) {
         return pipe(
             config,
