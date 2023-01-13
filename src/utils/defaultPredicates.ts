@@ -5,9 +5,11 @@ License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-import { constFalse, pipe } from "fp-ts/lib/function";
-import { getOrElse, map } from "fp-ts/lib/Option";
 import { PropertySignature, InterfaceDeclaration } from "typescript";
+
+import * as array from "fp-ts/lib/Array";
+import { constFalse, pipe, flow } from "fp-ts/lib/function";
+import * as Option from "fp-ts/lib/Option";
 
 import { getComments } from "./getComments";
 
@@ -16,7 +18,7 @@ export const defaultFieldPredicate = (reg: RegExp) => (
 ): boolean => {
     return pipe(
         getComments(node),
-        map((lines) => {
+        Option.map((lines) => {
             let isIgnored = false;
             for (const line of lines) {
                 if (line.search(reg) !== -1) {
@@ -27,26 +29,16 @@ export const defaultFieldPredicate = (reg: RegExp) => (
 
             return isIgnored;
         }),
-        getOrElse(constFalse)
+        Option.getOrElse(constFalse)
     );
 };
 
-export const defaultInterfacePredicate = (reg: RegExp) => (
-    node: InterfaceDeclaration
-): boolean => {
-    return pipe(
-        getComments(node),
-        map((lines) => {
-            let toExport = false;
-            for (const line of lines) {
-                if (line.search(reg) !== -1) {
-                    toExport = true;
-                    break;
-                }
-            }
-
-            return toExport;
-        }),
-        getOrElse(constFalse)
+export const defaultInterfacePredicate = (
+    reg: RegExp
+): ((node: InterfaceDeclaration) => boolean) =>
+    flow(
+        getComments,
+        Option.chain(array.last),
+        Option.map((line) => line.search(reg) !== -1),
+        Option.getOrElse(constFalse)
     );
-};

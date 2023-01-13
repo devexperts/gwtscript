@@ -227,7 +227,7 @@ export const parseTypeNode = (
                                 parseTypeNode(
                                     first.type,
                                     checker,
-                                    checker.getTypeFromTypeNode(first.type),
+                                    checker.getTypeAtLocation(first.type),
                                     env
                                 ),
                                 map((parsed) => ({
@@ -323,11 +323,6 @@ export const parseTypeNode = (
             );
         }
 
-        // if its a shape and a type declaration
-        if (ts.isIdentifier(node.typeName)) {
-            // console.log(node.typeName.text, node.typeName["symbol"].declarations.length)
-        }
-
         // Unfortunately, in non-shape cases we only have ts.Type.
         return pipe(
             env,
@@ -420,12 +415,18 @@ export const parseTypeNode = (
         );
     }
 
-    if (ts.isUnionTypeNode(node) && type.isUnion()) {
+    // You need to refactor this shit based on type.isUnion() and type, coz somehow typePart has type of Reference, but typePart's type is Union xDxDxD
+    if (ts.isUnionTypeNode(node)) {
         return pipe(
             config,
             sequenceReaderEither(
-                node.types.map((typePart, i) =>
-                    parseTypeNode(typePart, checker, type.types[i], env)
+                node.types.map((typePart) =>
+                    parseTypeNode(
+                        typePart,
+                        checker,
+                        checker.getTypeAtLocation(typePart),
+                        env
+                    )
                 )
             ),
             mapEither((types) => new UnionType(types)),
